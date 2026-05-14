@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 56" fill="none">
+  <!--
+    Voisy logo — double chevron / W form (two roof silhouettes sharing a wall)
+    Bicolor variant (primary): green left, terracotta right
+    Monochrome variant: replace both paths with single fill="#2D6A4F"
+      <path d="M2 54 L19 10 Q20 6 21 10 L39 54 L41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="#2D6A4F"/>
+    White variant (on green bg): fill="rgba(255,255,255,0.95)" left, fill="rgba(255,255,255,0.65)" right
+  -->
+  <!-- Left chevron — green -->
+  <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="#2D6A4F"/>
+  <!-- Right chevron — terracotta -->
+  <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="#C4622D"/>
+</svg>

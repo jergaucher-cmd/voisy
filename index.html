@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#2D6A4F">
+  <meta name="description" content="Voisy — Mon quartier prend vie">
+  <title>Voisy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div id="loading-screen">
+    <div class="loading-logo">
+      <div class="loading-icon">
+        <svg width="56" height="40" viewBox="0 0 80 56" fill="none">
+          <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
+          <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
+        </svg>
+      </div>
+      <span class="loading-text">Voisy</span>
+      <span class="loading-sub">Mon quartier prend vie</span>
+    </div>
+  </div>
+
+  <div id="app" class="hidden"></div>
+
+  <nav id="bottom-nav" class="hidden">
+    <button class="nav-btn" data-view="feed" aria-label="Fil du quartier">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9,22 9,12 15,12 15,22"/>
+      </svg>
+      <span>Quartier</span>
+    </button>
+    <button class="nav-btn nav-post-btn" data-view="new-post" aria-label="Publier">
+      <div class="post-btn-circle">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </div>
+    </button>
+    <button class="nav-btn" data-view="messages" aria-label="Messages">
+      <div class="nav-icon-wrapper">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        </svg>
+        <span id="msg-badge" class="badge hidden">0</span>
+      </div>
+      <span>Messages</span>
+    </button>
+    <button class="nav-btn" data-view="profile" aria-label="Mon profil">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span>Profil</span>
+    </button>
+  </nav>
+
+  <div id="modal-overlay" class="hidden" role="dialog" aria-modal="true"></div>
+  <div id="toast-container" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
