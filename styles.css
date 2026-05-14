@@ -128,9 +128,9 @@ img { display: block; max-width: 100%; }
   opacity: 0.97;
 }
 .landing-slogan {
-  font-size: 11px; letter-spacing: 0.32em; color: rgba(255,255,255,0.45);
+  font-size: 8px; letter-spacing: 0.28em; color: rgba(255,255,255,0.38);
   text-transform: uppercase; font-weight: 500; text-align: center;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 .landing-tagline {
   font-size: 13px; font-style: italic; font-weight: 400;
@@ -167,7 +167,7 @@ img { display: block; max-width: 100%; }
   font-family: var(--font); padding: 0; margin-bottom: 0;
   display: inline-flex; align-items: center; gap: 4px;
   transition: color 0.15s;
-  position: absolute; top: 24px; left: 24px;
+  position: absolute; top: 24px; left: 24px; z-index: 3;
 }
 .auth-back-btn:hover { color: rgba(255,255,255,0.9); }
 
@@ -253,17 +253,35 @@ img { display: block; max-width: 100%; }
   padding: 48px 32px 36px;
   text-align: center;
   display: flex; flex-direction: column; align-items: center;
-  position: relative;
+  position: relative; overflow: hidden;
+}
+.auth-hero-bg {
+  position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+}
+.auth-bg-img {
+  position: absolute; inset: -14px;
+  width: calc(100% + 28px); height: calc(100% + 28px);
+  object-fit: cover; filter: blur(8px);
+  opacity: 0; transition: opacity 1.2s ease-in-out;
+}
+.auth-bg-img.active { opacity: 1; }
+.auth-hero-overlay {
+  position: absolute; inset: 0; z-index: 1;
+  background: rgba(13,43,30,0.65);
 }
 .auth-hero-icon {
   width: 52px; height: 52px; margin: 0 auto 18px;
   display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 2;
 }
 .auth-hero h1 {
-  font-size: 32px; font-weight: 800; color: var(--white);
-  letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 10px;
+  font-size: 19px; font-weight: 800; color: var(--white);
+  letter-spacing: 3em; text-transform: uppercase;
+  margin-bottom: 6px; margin-right: -3em;
+  position: relative; z-index: 2;
 }
-.auth-hero p { font-size: 13px; color: rgba(255,255,255,0.55); font-weight: 500; line-height: 1.5; letter-spacing: 0.08em; text-transform: uppercase; }
+.auth-hero p { font-size: 10px; color: rgba(255,255,255,0.45); font-weight: 600; line-height: 1.5; letter-spacing: 0.22em; text-transform: uppercase; position: relative; z-index: 2; }
+.auth-hero .auth-tagline { font-size: 12px; font-style: italic; font-weight: 400; color: rgba(255,255,255,0.70); letter-spacing: 0.02em; text-transform: none; margin-bottom: 10px; }
 .auth-body { padding: 36px 24px; flex: 1; }
 .auth-tabs {
   display: flex; background: rgba(13,43,30,0.06); border-radius: 4px; padding: 3px; margin-bottom: 32px;

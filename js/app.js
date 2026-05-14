@@ -59,6 +59,7 @@ const state = {
   realtimeSubscription: null,
   pendingConvParams: null,
   channelsSubscribed: false,
+  authBgTimer: null,
 };
 
 // ===== DOM =====
@@ -232,18 +233,42 @@ function avatarHTML(profile, size = 'small') {
 }
 
 // ===== AUTH =====
+const AUTH_BG_IMGS = [
+  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=70&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&q=70&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1516939884455-1445c8652f83?w=800&q=70&auto=format&fit=crop',
+];
+
+function authHeroBgHTML() {
+  return `
+    <div class="auth-hero-bg" aria-hidden="true">
+      ${AUTH_BG_IMGS.map((src, i) => `<img class="auth-bg-img${i === 0 ? ' active' : ''}" src="${src}" alt="" loading="lazy">`).join('')}
+      <div class="auth-hero-overlay"></div>
+    </div>`;
+}
+
+function startAuthBgSlideshow() {
+  const imgs = document.querySelectorAll('.auth-bg-img');
+  if (!imgs.length) return;
+  let current = 0;
+  clearInterval(state.authBgTimer);
+  state.authBgTimer = setInterval(() => {
+    const all = document.querySelectorAll('.auth-bg-img');
+    if (!all.length) { clearInterval(state.authBgTimer); return; }
+    all[current].classList.remove('active');
+    current = (current + 1) % all.length;
+    all[current].classList.add('active');
+  }, 4000);
+}
+
 function renderLogin() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
+        ${authHeroBgHTML()}
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
-        <div class="auth-hero-icon">
-          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
-            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
-            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
-          </svg>
-        </div>
         <h1>Voisy</h1>
+        <p class="auth-tagline">Ici, c'est l'entraide gratuite.</p>
         <p>Mon quartier prend vie</p>
       </div>
       <div class="auth-body">
@@ -274,6 +299,7 @@ function renderLogin() {
       </div>
     </div>`;
 
+  startAuthBgSlideshow();
   document.getElementById('tab-login').onclick = () => navigate('login');
   document.getElementById('tab-register').onclick = () => navigate('register');
   document.getElementById('btn-login').onclick = handleLogin;
@@ -443,14 +469,10 @@ function renderRegister() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
+        ${authHeroBgHTML()}
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
-        <div class="auth-hero-icon">
-          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
-            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
-            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
-          </svg>
-        </div>
         <h1>Voisy</h1>
+        <p class="auth-tagline">Ici, c'est l'entraide gratuite.</p>
         <p>Mon quartier prend vie</p>
       </div>
       <div class="auth-body">
@@ -498,6 +520,7 @@ function renderRegister() {
       </div>
     </div>`;
 
+  startAuthBgSlideshow();
   document.getElementById('tab-login').onclick = () => navigate('login');
   document.getElementById('tab-register').onclick = () => navigate('register');
   document.getElementById('btn-register').onclick = handleRegister;
