@@ -453,6 +453,7 @@ function renderRegister() {
         </div>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
+        <p class="auth-hero-tagline">Ici, c'est l'entraide gratuite.</p>
       </div>
       <div class="auth-body">
         <div class="auth-tabs">
@@ -483,6 +484,13 @@ function renderRegister() {
           <input type="date" class="form-input" id="reg-birthdate" max="${max18Date()}" autocomplete="bday">
           <div class="form-hint">Voisy est réservé aux personnes de 18 ans et plus.</div>
         </div>
+        <label class="ob-pledge-label" style="margin-top:4px">
+          <input type="checkbox" id="reg-pledge" class="ob-pledge-checkbox">
+          <span class="ob-pledge-text">
+            Je m'engage à ne jamais proposer ou demander de transaction financière sur Voisy.
+            <a href="pages/cgu.html" target="_blank" class="link">Voir les CGU</a>
+          </span>
+        </label>
         <div id="reg-error" class="form-error"></div>
         <button class="btn btn-primary" id="btn-register">Créer mon compte</button>
         <p style="text-align:center; margin-top:16px; font-size:12px; color:var(--text-muted); line-height:1.5">
@@ -507,8 +515,11 @@ async function handleRegister() {
   const btn          = document.getElementById('btn-register');
   errEl.textContent = '';
 
+  const pledge = document.getElementById('reg-pledge')?.checked;
+
   if (!prenom || !email || !pass || !quartier) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
   if (!birthdateVal) { errEl.textContent = 'Veuillez indiquer votre date de naissance.'; return; }
+  if (!pledge) { errEl.textContent = 'Merci d\'accepter cet engagement pour rejoindre Voisy.'; return; }
 
   const age = computeAge(birthdateVal);
   if (age === null || age < 18) {
