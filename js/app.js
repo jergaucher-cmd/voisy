@@ -238,14 +238,13 @@ function renderLogin() {
       <div class="auth-hero">
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <div class="auth-hero-icon">
-          <svg width="42" height="30" viewBox="0 0 80 56" fill="none">
+          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
             <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
           </svg>
         </div>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
-        <p class="auth-hero-tagline">Ici, c'est l'entraide gratuite.</p>
       </div>
       <div class="auth-body">
         <div class="auth-tabs">
@@ -394,7 +393,7 @@ function renderForgotPassword() {
     <div class="auth-screen">
       <div class="auth-hero">
         <div class="auth-hero-icon">
-          <svg width="42" height="30" viewBox="0 0 80 56" fill="none">
+          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
             <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
           </svg>
@@ -446,14 +445,13 @@ function renderRegister() {
       <div class="auth-hero">
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <div class="auth-hero-icon">
-          <svg width="42" height="30" viewBox="0 0 80 56" fill="none">
+          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
             <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
           </svg>
         </div>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
-        <p class="auth-hero-tagline">Ici, c'est l'entraide gratuite.</p>
       </div>
       <div class="auth-body">
         <div class="auth-tabs">
@@ -581,7 +579,7 @@ function renderOnboarding() {
     <div class="auth-screen">
       <div class="auth-hero">
         <div class="auth-hero-icon">
-          <svg width="42" height="30" viewBox="0 0 80 56" fill="none">
+          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
             <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
           </svg>
@@ -794,6 +792,7 @@ async function renderFeed() {
             <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
           </svg>
           <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
+          <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
         </div>
         <div class="feed-meta">📍 ${esc(state.profile?.quartier || 'Angers')}</div>
         <div class="filter-bar-wrap">
