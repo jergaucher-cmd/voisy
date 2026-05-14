@@ -96,6 +96,7 @@ function navigate(view, params = {}) {
     case 'conversation':    renderConversation(params.convId); break;
     case 'profile':         renderProfile(params.userId || null); break;
     case 'edit-profile':    renderEditProfile(); break;
+    case 'landing':         renderLanding(); break;
     case 'forgot-password': renderForgotPassword(); break;
     case 'welcome':         renderWelcome(); break;
     default:                renderFeed();
@@ -219,6 +220,7 @@ function renderLogin() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
+        <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <div class="auth-hero-icon">
           <svg width="42" height="30" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
@@ -285,6 +287,90 @@ async function handleLogin() {
   navigate('feed');
 }
 
+function renderLanding() {
+  $nav.classList.add('hidden');
+  $app.innerHTML = `
+    <div class="landing-screen">
+
+      <!-- Cartes factices flottantes (arrière-plan flouté) -->
+      <div class="landing-bg" aria-hidden="true">
+
+        <div class="landing-card-wrap" style="top:4%;left:-8%;transform:rotate(-8deg)">
+          <div class="landing-card" style="animation-duration:9s;animation-delay:0s">
+            <div class="landing-card-badge">🤝 Entraide</div>
+            <div class="landing-card-text">Quelqu'un pour garder mon chat ce weekend ?</div>
+            <div class="landing-card-meta">📍 Belle-Beille</div>
+          </div>
+        </div>
+
+        <div class="landing-card-wrap" style="top:20%;right:-9%;transform:rotate(7deg)">
+          <div class="landing-card" style="animation-duration:12s;animation-delay:-4s">
+            <div class="landing-card-badge">🎭 Événements</div>
+            <div class="landing-card-text">Jazz live vendredi soir au Café Béatrice</div>
+            <div class="landing-card-meta">📍 Centre-ville</div>
+          </div>
+        </div>
+
+        <div class="landing-card-wrap" style="top:40%;left:-4%;transform:rotate(-5deg)">
+          <div class="landing-card" style="animation-duration:14s;animation-delay:-7s">
+            <div class="landing-card-badge">🏃 Sport</div>
+            <div class="landing-card-text">Running 7h du mat, qui vient ?</div>
+            <div class="landing-card-meta">📍 Lac de Maine</div>
+          </div>
+        </div>
+
+        <div class="landing-card-wrap" style="top:58%;right:-7%;transform:rotate(6deg)">
+          <div class="landing-card" style="animation-duration:10s;animation-delay:-2s">
+            <div class="landing-card-badge">📦 Objets</div>
+            <div class="landing-card-text">Je donne une étagère IKEA, parfait état</div>
+            <div class="landing-card-meta">📍 La Doutre</div>
+          </div>
+        </div>
+
+        <div class="landing-card-wrap" style="top:76%;left:1%;transform:rotate(-6deg)">
+          <div class="landing-card" style="animation-duration:11s;animation-delay:-9s">
+            <div class="landing-card-badge">☕ Sorties</div>
+            <div class="landing-card-text">Café et balade dimanche matin ?</div>
+            <div class="landing-card-meta">📍 Monplaisir</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Overlay gradient -->
+      <div class="landing-overlay" aria-hidden="true"></div>
+
+      <!-- Contenu principal -->
+      <div class="landing-content">
+        <div class="landing-logo-wrap">
+          <svg class="landing-voisy-svg" viewBox="0 0 360 92" xmlns="http://www.w3.org/2000/svg"
+               fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="0"   y1="10" x2="36"  y2="82" stroke-width="2.5"/>
+            <line x1="72"  y1="10" x2="36"  y2="82" stroke-width="2.5"/>
+            <ellipse cx="118" cy="46" rx="34" ry="36" stroke-width="2.5"/>
+            <line x1="170" y1="10" x2="170" y2="82" stroke-width="2.5"/>
+            <line x1="162" y1="10" x2="178" y2="10" stroke-width="0.7" stroke="rgba(255,255,255,0.5)"/>
+            <line x1="162" y1="82" x2="178" y2="82" stroke-width="0.7" stroke="rgba(255,255,255,0.5)"/>
+            <path d="M254,10 C192,10 254,82 192,82" stroke-width="2.5"/>
+            <line x1="265" y1="10" x2="312" y2="48" stroke-width="2.5"/>
+            <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
+            <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
+          </svg>
+          <div class="landing-slogan">Mon quartier prend vie</div>
+        </div>
+
+        <div class="landing-cta-wrap">
+          <button class="landing-cta-btn" id="btn-landing-join">Rejoindre mon quartier</button>
+          <button class="landing-login-link" id="btn-landing-login">Déjà inscrit ? Se connecter</button>
+        </div>
+      </div>
+
+    </div>`;
+
+  document.getElementById('btn-landing-join').onclick  = () => navigate('register');
+  document.getElementById('btn-landing-login').onclick = () => navigate('login');
+}
+
 function renderForgotPassword() {
   $nav.classList.add('hidden');
   $app.innerHTML = `
@@ -341,6 +427,7 @@ function renderRegister() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
+        <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <div class="auth-hero-icon">
           <svg width="42" height="30" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
@@ -2101,7 +2188,11 @@ async function init() {
 
   setupNav();
 
-  const { data: { session } } = await db.auth.getSession();
+  // Attendre à la fois la session ET le minimum de 1.5s de splash
+  const [{ data: { session } }] = await Promise.all([
+    db.auth.getSession(),
+    new Promise(r => setTimeout(r, 1500))
+  ]);
 
   function setupGlobalChannels(uid) {
     if (state.channelsSubscribed) return;
@@ -2143,7 +2234,7 @@ async function init() {
       setInterval(refreshUnreadCount, 30000);
     }
   } else {
-    navigate('login');
+    navigate('landing');
   }
 
   // Auth state listener
@@ -2154,7 +2245,7 @@ async function init() {
       await loadCurrentProfile();
       if (!state.profile) {
         navigate('onboarding');
-      } else if (state.view === 'login' || state.view === 'register') {
+      } else if (['login', 'register', 'landing'].includes(state.view)) {
         navigate('feed');
         refreshUnreadCount();
         setInterval(refreshUnreadCount, 30000);
@@ -2163,7 +2254,8 @@ async function init() {
     if (event === 'SIGNED_OUT') {
       state.user = null;
       state.profile = null;
-      navigate('login');
+      state.channelsSubscribed = false;
+      navigate('landing');
     }
   });
 }
