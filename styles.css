@@ -75,7 +75,7 @@ img { display: block; max-width: 100%; }
 /* Blurred background cards layer */
 .landing-bg {
   position: absolute; inset: 0;
-  filter: blur(2.5px);
+  filter: blur(3px);
   pointer-events: none;
   user-select: none;
 }
