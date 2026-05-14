@@ -117,10 +117,11 @@ img { display: block; max-width: 100%; }
 .landing-content {
   position: relative; z-index: 2;
   flex: 1; display: flex; flex-direction: column;
-  padding: 72px 28px 52px;
+  padding: 48px 28px 52px;
 }
 .landing-logo-wrap {
   display: flex; flex-direction: column; align-items: center;
+  margin-top: 0;
 }
 .landing-voisy-svg {
   width: 100%; max-width: 320px; height: auto; display: block;
@@ -130,6 +131,12 @@ img { display: block; max-width: 100%; }
   font-size: 11px; letter-spacing: 0.32em; color: rgba(255,255,255,0.45);
   text-transform: uppercase; font-weight: 500; text-align: center;
   margin-top: 14px;
+}
+.landing-tagline {
+  font-size: 13px; font-style: italic; font-weight: 400;
+  color: rgba(255,255,255,0.70); text-align: center;
+  margin-top: 12px; line-height: 1.5;
+  letter-spacing: 0.01em;
 }
 .landing-cta-wrap {
   margin-top: auto;
@@ -314,7 +321,7 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   transition: background 0.18s, color 0.18s, border-color 0.18s;
   width: 100%; border: 2px solid transparent;
 }
-.btn:active { opacity: 0.85; }
+.btn:active { }
 .btn-primary { background: var(--ink); color: var(--white); border-color: var(--ink); }
 .btn-primary:hover { background: var(--white); color: var(--ink); }
 .btn-secondary { background: var(--ink); color: var(--white); border-color: var(--ink); }
@@ -777,6 +784,24 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 500;
 }
 
+/* ===== PLEDGE CHECKBOX (onboarding) ===== */
+.ob-pledge-label {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin-bottom: 20px; cursor: pointer;
+}
+.ob-pledge-checkbox {
+  flex-shrink: 0;
+  width: 18px; height: 18px; margin-top: 2px;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+.ob-pledge-text {
+  font-size: 12px; color: var(--muted); line-height: 1.6; font-weight: 500;
+}
+.ob-pledge-text .link {
+  font-size: 12px; white-space: nowrap;
+}
+
 /* ===== WELCOME STEPS ===== */
 .welcome-step { padding: 40px 24px; text-align: center; }
 .step-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 36px; }
@@ -1054,6 +1079,85 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .post-review-badge { font-size: 12px; margin-left: 4px; vertical-align: middle; }
 
 /* ===== RESPONSIVE ===== */
+/* ===== ANIMATIONS ===== */
+
+/* 0. Type selector — transition au changement de catégorie */
+@keyframes typeUpdate {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.type-selector-update { animation: typeUpdate 0.18s ease-out both; }
+
+/* 1. Feed — cartes en cascade */
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-enter {
+  animation: cardEnter 0.4s ease-out both;
+  animation-delay: var(--card-delay, 0ms);
+}
+
+/* 2. Bouton + — pulse invitation */
+@keyframes postBtnPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
+}
+.post-btn-circle { animation: postBtnPulse 2s ease-in-out infinite; }
+.post-btn-circle:active { animation: none; transform: scale(0.93); }
+
+/* 3. Badges de confiance — rebond à l'apparition */
+@keyframes badgeBounce {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+.badge-bounce {
+  animation: badgeBounce 0.4s ease-out both;
+  animation-delay: var(--badge-delay, 0ms);
+}
+
+/* 4. Transitions entre vues — glissement horizontal */
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.view-slide-right { animation: slideFromRight 0.25s ease-out both; }
+.view-slide-left  { animation: slideFromLeft  0.25s ease-out both; }
+
+/* 5. Badge messages — pop à l'apparition */
+@keyframes badgePop {
+  0%   { transform: scale(0); }
+  55%  { transform: scale(1.35); }
+  80%  { transform: scale(0.88); }
+  100% { transform: scale(1); }
+}
+.badge-pop { animation: badgePop 0.45s ease-out both; }
+
+/* 6. Boutons — pression tactile */
+.btn {
+  transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.1s;
+}
+.btn:active:not(:disabled) { transform: scale(0.96); opacity: 1; }
+.btn-help  { transition: background 0.15s, color 0.15s, transform 0.1s; }
+.btn-help:active { transform: scale(0.96); }
+.filter-chip { transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s; }
+.filter-chip:active { transform: scale(0.95); }
+
+/* 7. Accessibilité — désactive tout pour prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:       0.01ms !important;
+    animation-delay:          0.01ms !important;
+    animation-iteration-count: 1    !important;
+    transition-duration:      0.01ms !important;
+  }
+}
+
 @media (min-width: 480px) {
   #app { max-width: 480px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
   #bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); }

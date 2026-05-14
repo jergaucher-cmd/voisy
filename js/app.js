@@ -69,7 +69,10 @@ const $badge  = document.getElementById('msg-badge');
 const $modal  = document.getElementById('modal-overlay');
 
 // ===== ROUTER =====
+const VIEW_ORDER = { feed: 0, 'new-post': 1, messages: 2, profile: 3 };
+
 function navigate(view, params = {}) {
+  const prevView = state.view;
   state.view = view;
   state.viewParams = params;
 
@@ -100,6 +103,19 @@ function navigate(view, params = {}) {
     case 'forgot-password': renderForgotPassword(); break;
     case 'welcome':         renderWelcome(); break;
     default:                renderFeed();
+  }
+
+  // Glissement horizontal entre onglets principaux
+  const prevOrder = VIEW_ORDER[prevView] ?? -1;
+  const nextOrder = VIEW_ORDER[view]    ?? -1;
+  if (prevOrder >= 0 && nextOrder >= 0 && prevOrder !== nextOrder) {
+    requestAnimationFrame(() => {
+      const el = $app.firstElementChild;
+      if (!el) return;
+      const cls = nextOrder > prevOrder ? 'view-slide-right' : 'view-slide-left';
+      el.classList.add(cls);
+      setTimeout(() => el.classList.remove(cls), 280);
+    });
   }
 }
 
@@ -357,6 +373,7 @@ function renderLanding() {
             <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
           </svg>
           <div class="landing-slogan">Mon quartier prend vie</div>
+          <div class="landing-tagline">Ici, c'est l'entraide gratuite, pas le commerce.</div>
         </div>
 
         <div class="landing-cta-wrap">
@@ -610,6 +627,14 @@ function renderOnboarding() {
           <p class="zero-money-text">Aucune transaction financière n'est autorisée sur Voisy — ni paiement, ni troc, ni pourboire. Voisy est 100% gratuit.</p>
         </div>
 
+        <label class="ob-pledge-label">
+          <input type="checkbox" id="ob-pledge" class="ob-pledge-checkbox">
+          <span class="ob-pledge-text">
+            Je m'engage à ne jamais proposer ou demander de transaction financière sur Voisy.
+            <a href="pages/cgu.html" target="_blank" class="link">Voir les CGU</a>
+          </span>
+        </label>
+
         <div id="ob-error" class="form-error" style="margin-bottom:12px"></div>
         <button class="btn btn-primary" id="btn-ob-submit">Créer mon profil</button>
 
@@ -643,10 +668,13 @@ async function handleOnboardingSubmit() {
   const btn             = document.getElementById('btn-ob-submit');
   errEl.textContent = '';
 
+  const pledge = document.getElementById('ob-pledge')?.checked;
+
   if (!prenom)          { errEl.textContent = 'Le prénom est obligatoire.'; return; }
   if (!quartier)        { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
   if (!presence_status) { errEl.textContent = 'Indiquez votre situation dans ce quartier.'; return; }
   if (!birthdateVal)    { errEl.textContent = 'La date de naissance est obligatoire.'; return; }
+  if (!pledge)          { errEl.textContent = 'Merci de cocher la case d\'engagement — c\'est la base de la confiance sur Voisy 💚'; return; }
 
   const age = computeAge(birthdateVal);
   if (age === null || age < 18) {
@@ -855,6 +883,10 @@ async function loadFeed() {
   }
 
   listEl.innerHTML = posts.map(p => postCardHTML(p, alertUserIds)).join('');
+  listEl.querySelectorAll('.post-card').forEach((card, i) => {
+    card.style.setProperty('--card-delay', `${Math.min(i * 80, 640)}ms`);
+    card.classList.add('card-enter');
+  });
   listEl.addEventListener('click', handleFeedClick);
 }
 
@@ -1076,16 +1108,64 @@ function renderNewPost() {
       </div>
     </div>`;
 
+  // Config labels par catégorie
+  const TYPE_CONFIG = {
+    'Entraide': {
+      besoin: { icon: '🙋', label: 'J\'ai besoin de…',      desc: 'Demandez de l\'aide'      },
+      offre:  { icon: '💚', label: 'Je propose…',            desc: 'Offrez votre aide'         },
+      placeholder: 'Décris ton besoin ou ton offre en quelques mots…',
+    },
+    'Animaux': {
+      besoin: { icon: '🙋', label: 'J\'ai besoin de…',      desc: 'Cherchez de l\'aide'       },
+      offre:  { icon: '🐾', label: 'Je propose…',            desc: 'Proposez votre aide'       },
+      placeholder: 'Décris ton besoin ou ton offre en quelques mots…',
+    },
+    'Objets': {
+      besoin: { icon: '🙋', label: 'J\'ai besoin de…',      desc: 'Cherchez un objet'         },
+      offre:  { icon: '📦', label: 'Je propose…',            desc: 'Prêt ou don d\'objets'     },
+      placeholder: 'Décris ton besoin ou ton offre en quelques mots…',
+    },
+    'Sport': {
+      besoin: { icon: '🔍', label: 'Je cherche des gens',   desc: 'Trouver des partenaires'   },
+      offre:  { icon: '🏃', label: 'J\'organise une activité', desc: 'Invitez le quartier'    },
+      placeholder: 'Décris l\'activité — lieu, heure, niveau…',
+    },
+    'Sorties': {
+      besoin: { icon: '🔍', label: 'Je cherche des gens',   desc: 'Trouver des accompagnants' },
+      offre:  { icon: '☕', label: 'J\'organise une sortie', desc: 'Invitez le quartier'       },
+      placeholder: 'Décris la sortie — où, quand, ambiance…',
+    },
+  };
+
+  function applyTypeConfig(cat) {
+    const cfg = TYPE_CONFIG[cat];
+    if (!cfg) return;
+    const besoinEl = document.getElementById('type-besoin');
+    const offreEl  = document.getElementById('type-offre');
+    besoinEl.querySelector('.post-type-option-icon').textContent  = cfg.besoin.icon;
+    besoinEl.querySelector('.post-type-option-label').textContent = cfg.besoin.label;
+    besoinEl.querySelector('.post-type-option-desc').textContent  = cfg.besoin.desc;
+    offreEl.querySelector('.post-type-option-icon').textContent   = cfg.offre.icon;
+    offreEl.querySelector('.post-type-option-label').textContent  = cfg.offre.label;
+    offreEl.querySelector('.post-type-option-desc').textContent   = cfg.offre.desc;
+    document.getElementById('post-desc').placeholder = cfg.placeholder;
+    // Animation de transition
+    const wrap = document.getElementById('type-selector-wrap');
+    wrap.classList.remove('type-selector-update');
+    void wrap.offsetWidth;
+    wrap.classList.add('type-selector-update');
+  }
+
   // Type selection
   document.getElementById('type-besoin').onclick = () => {
     postState.type = 'besoin';
-    document.querySelectorAll('.post-type-option').forEach(el => { el.classList.remove('selected', 'besoin', 'offre'); });
+    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre'));
     document.getElementById('type-besoin').classList.add('selected', 'besoin');
     checkPublishReady();
   };
   document.getElementById('type-offre').onclick = () => {
     postState.type = 'offre';
-    document.querySelectorAll('.post-type-option').forEach(el => { el.classList.remove('selected', 'besoin', 'offre'); });
+    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre'));
     document.getElementById('type-offre').classList.add('selected', 'offre');
     checkPublishReady();
   };
@@ -1094,21 +1174,24 @@ function renderNewPost() {
   document.getElementById('cat-grid').addEventListener('click', e => {
     const opt = e.target.closest('.category-option');
     if (!opt) return;
-    postState.categorie = opt.dataset.cat;
+    const cat = opt.dataset.cat;
+    postState.categorie = cat;
     document.querySelectorAll('.category-option').forEach(el => el.classList.remove('selected'));
     opt.classList.add('selected');
 
-    const isEvenement = opt.dataset.cat === 'Événements';
+    const isEvenement = cat === 'Événements';
     document.getElementById('type-selector-wrap').classList.toggle('hidden', isEvenement);
     document.getElementById('type-evenement').classList.toggle('hidden', !isEvenement);
-    const textarea = document.getElementById('post-desc');
-    const expiresInput = document.getElementById('post-expires');
+
+    const textarea      = document.getElementById('post-desc');
+    const expiresInput  = document.getElementById('post-expires');
     const expiresOptional = document.getElementById('expires-optional');
-    const expiresHint = document.getElementById('expires-hint');
-    const expiresLabel = document.getElementById('expires-label');
+    const expiresHint   = document.getElementById('expires-hint');
+    const expiresLabel  = document.getElementById('expires-label');
+
     if (isEvenement) {
       postState.type = 'offre';
-      textarea.placeholder = 'Décrivez l\'événement — lieu, date, heure…';
+      textarea.placeholder = 'Décris l\'événement — lieu, date, heure…';
       expiresInput.required = true;
       expiresOptional.style.display = 'none';
       expiresLabel.firstChild.textContent = 'Date et heure de l\'événement ';
@@ -1117,11 +1200,11 @@ function renderNewPost() {
     } else {
       postState.type = null;
       document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre'));
-      textarea.placeholder = 'Décrivez votre besoin ou votre offre en quelques mots…';
+      applyTypeConfig(cat);
       expiresInput.required = false;
       expiresOptional.style.display = '';
       expiresLabel.firstChild.textContent = 'Expiration ';
-      expiresHint.textContent = 'La publication disparaît automatiquement du feed après cette date.';
+      expiresHint.textContent = 'Sans date choisie, la publication expire automatiquement après 14 jours.';
       document.getElementById('expires-group').classList.remove('expires-required');
     }
     expiresInput.value = '';
@@ -1459,8 +1542,14 @@ function subscribeToMessages(convId) {
 function updateMsgBadge(count) {
   if (!$badge) return;
   if (count > 0) {
+    const wasHidden = $badge.classList.contains('hidden');
     $badge.textContent = count > 9 ? '9+' : count;
     $badge.classList.remove('hidden');
+    if (wasHidden) {
+      $badge.classList.remove('badge-pop');
+      void $badge.offsetWidth; // force reflow pour relancer l'animation
+      $badge.classList.add('badge-pop');
+    }
   } else {
     $badge.classList.add('hidden');
   }
@@ -1733,6 +1822,14 @@ async function renderProfile(userId) {
           <button onclick="showDeleteAccountModal()" style="font-size:12px;color:var(--text-light);background:none;border:none;cursor:pointer">Supprimer mon compte</button>
         </div>` : ''}
     </div>`;
+
+  // Rebond des badges de confiance
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.trust-badge.verified').forEach((el, i) => {
+      el.style.setProperty('--badge-delay', `${i * 100}ms`);
+      el.classList.add('badge-bounce');
+    });
+  });
 
   if (isOwn) {
     document.getElementById('btn-edit-profile').onclick = () => navigate('edit-profile');
