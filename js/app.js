@@ -245,6 +245,7 @@ function renderLogin() {
         </div>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
+        <p class="auth-hero-tagline">Ici, c'est l'entraide gratuite.</p>
       </div>
       <div class="auth-body">
         <div class="auth-tabs">
@@ -373,7 +374,6 @@ function renderLanding() {
             <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
           </svg>
           <div class="landing-slogan">Mon quartier prend vie</div>
-          <div class="landing-tagline">Ici, c'est l'entraide gratuite, pas le commerce.</div>
         </div>
 
         <div class="landing-cta-wrap">
