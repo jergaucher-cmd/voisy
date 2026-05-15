@@ -56,10 +56,13 @@ const state = {
   profile: null,
   view: null,
   feedFilter: 'all',
+  feedSearch: '',
   realtimeSubscription: null,
   pendingConvParams: null,
   channelsSubscribed: false,
   authBgTimer: null,
+  currentConvOtherId: null,
+  expiryNotifChecked: false,
 };
 
 // ===== CACHE (stale-while-revalidate) =====
@@ -157,6 +160,7 @@ function navigate(view, params = {}) {
     case 'landing':         renderLanding(); break;
     case 'forgot-password': renderForgotPassword(); break;
     case 'welcome':         renderWelcome(); break;
+    case 'notifications':   renderNotifications(); break;
     default:                renderFeed();
   }
 
@@ -447,30 +451,41 @@ function renderForgotPassword() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
-        <div class="auth-hero-icon">
+        <button class="auth-back-btn" onclick="navigate('login')">← Retour</button>
+        <div class="auth-hero-chevron">
           <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
-            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
-            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
+            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.90)"/>
+            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.50)"/>
           </svg>
         </div>
-        <h1>Mot de passe oublié</h1>
-        <p>On vous envoie un lien de réinitialisation.</p>
+        <h1>Voisy</h1>
+        <p>Réinitialisation du mot de passe</p>
       </div>
       <div class="auth-body">
-        <div id="forgot-sent" style="display:none;text-align:center;padding:24px 0">
-          <div style="font-size:48px;margin-bottom:16px">📬</div>
-          <div style="font-size:17px;font-weight:800;margin-bottom:8px">Email envoyé !</div>
-          <p style="font-size:14px;color:var(--text-muted);line-height:1.6">Vérifiez votre boîte mail (et vos spams).<br>Cliquez sur le lien pour choisir un nouveau mot de passe.</p>
+
+        <div id="forgot-sent" style="display:none;text-align:center;padding:28px 0 16px">
+          <div style="font-size:52px;margin-bottom:20px">📬</div>
+          <div style="font-size:18px;font-weight:800;margin-bottom:10px;color:var(--text)">Vérifiez votre boîte mail</div>
+          <p style="font-size:14px;color:var(--text-muted);line-height:1.7">
+            Un lien de réinitialisation a été envoyé à votre adresse email.<br>
+            Pensez à vérifier vos spams si vous ne le voyez pas.
+          </p>
+          <button class="btn btn-outline" style="margin-top:24px" onclick="navigate('login')">← Retour à la connexion</button>
         </div>
+
         <div id="forgot-form">
+          <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:20px">
+            Entrez l'adresse email associée à votre compte. Nous vous enverrons un lien pour choisir un nouveau mot de passe.
+          </p>
           <div class="form-group">
-            <label class="form-label">Votre adresse email</label>
+            <label class="form-label">Adresse email</label>
             <input type="email" class="form-input" id="forgot-email" placeholder="votre@email.com" autocomplete="email">
           </div>
           <div id="forgot-error" class="form-error"></div>
-          <button class="btn btn-primary" id="btn-forgot-send" style="margin-top:8px">Envoyer le lien</button>
+          <button class="btn btn-primary" id="btn-forgot-send" style="margin-top:8px">Envoyer le lien de réinitialisation</button>
           <button class="btn btn-ghost" style="margin-top:8px" onclick="navigate('login')">← Retour à la connexion</button>
         </div>
+
       </div>
     </div>`;
 
@@ -479,16 +494,23 @@ function renderForgotPassword() {
     const errEl = document.getElementById('forgot-error');
     const btn   = document.getElementById('btn-forgot-send');
     errEl.textContent = '';
-    if (!email) { errEl.textContent = 'Veuillez entrer votre adresse email.'; return; }
+    if (!email) {
+      errEl.textContent = 'Veuillez entrer votre adresse email.';
+      return;
+    }
     showLoading(btn, true);
     const { error } = await db.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin
+      redirectTo: 'https://www.voisy.eu'
     });
     showLoading(btn, false);
-    if (error) { errEl.textContent = 'Erreur. Vérifiez l\'adresse email.'; return; }
+    if (error) {
+      errEl.textContent = 'Quelque chose s\'est mal passé. Vérifiez votre adresse email et réessayez.';
+      return;
+    }
     document.getElementById('forgot-form').style.display = 'none';
     document.getElementById('forgot-sent').style.display = '';
   };
+
   document.getElementById('forgot-email').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('btn-forgot-send').click();
   });
@@ -875,7 +897,27 @@ async function renderFeed() {
           </div>
         </div>
         <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
-        <div class="feed-meta">📍 ${esc(state.profile?.quartier || 'Angers')}</div>
+        <div class="feed-meta">
+          <span>📍 ${esc(state.profile?.quartier || 'Angers')}</span>
+          <button class="notif-bell-btn" id="btn-notif-bell" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span id="notif-badge" class="notif-badge hidden">0</span>
+          </button>
+        </div>
+        <div class="feed-search-wrap">
+          <div class="feed-search-inner">
+            <svg class="feed-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input class="feed-search-input" id="feed-search" type="search" placeholder="Rechercher dans le quartier…" autocomplete="off" value="${esc(state.feedSearch)}">
+            <button class="feed-search-clear ${state.feedSearch ? '' : 'hidden'}" id="feed-search-clear" aria-label="Effacer la recherche">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
         <div class="filter-bar-wrap">
           <button class="filter-arrow hidden" id="filter-arrow-left" aria-label="Défiler à gauche">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -923,6 +965,31 @@ async function renderFeed() {
   arrowRight.addEventListener('click', () => filterBar.scrollBy({ left:  150, behavior: 'smooth' }));
   updateFilterArrows();
 
+  // Search bar
+  const searchInput = document.getElementById('feed-search');
+  const searchClear = document.getElementById('feed-search-clear');
+  let searchDebounce;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchDebounce);
+    const val = searchInput.value.trim();
+    searchClear.classList.toggle('hidden', !val);
+    searchDebounce = setTimeout(() => {
+      state.feedSearch = val;
+      loadFeed();
+    }, 300);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    state.feedSearch = '';
+    searchClear.classList.add('hidden');
+    loadFeed();
+    searchInput.focus();
+  });
+
+  // Bell
+  document.getElementById('btn-notif-bell').addEventListener('click', () => navigate('notifications'));
+  refreshNotifCount();
+
   loadFeed();
 }
 
@@ -931,7 +998,9 @@ async function loadFeed(opts = {}) {
   if (!listEl) return;
 
   const filter = state.feedFilter;
-  const cached = cache.feed[filter];
+  const search = state.feedSearch;
+  const cacheKey = `${filter}:${search}`;
+  const cached = cache.feed[cacheKey];
 
   // Serve stale cache immediately, refresh in background
   if (cached && !opts.forceRefresh) {
@@ -957,6 +1026,9 @@ async function loadFeed(opts = {}) {
     } else if (!['all','mon-quartier'].includes(filter)) {
       query = query.eq('categorie', filter);
     }
+    if (search) {
+      query = query.ilike('description', `%${search}%`);
+    }
 
     const { data: posts, error } = await withTimeout(query);
     clearTimeout(watchdog);
@@ -965,7 +1037,12 @@ async function loadFeed(opts = {}) {
     if (!el) return;
 
     if (error || !posts?.length) {
-      el.innerHTML = `
+      el.innerHTML = search ? `
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">Aucun résultat</div>
+          <div class="empty-text">Aucun post ne correspond à votre recherche dans ce quartier.</div>
+        </div>` : `
         <div class="empty-state">
           <div class="empty-icon">🌱</div>
           <div class="empty-title">Aucune publication</div>
@@ -992,7 +1069,7 @@ async function loadFeed(opts = {}) {
       } catch { /* alertes non-critiques */ }
     }
 
-    cache.feed[filter] = { posts, alertUserIds, at: Date.now() };
+    cache.feed[cacheKey] = { posts, alertUserIds, at: Date.now() };
     const freshEl = document.getElementById('feed-list');
     if (freshEl) renderFeedCards(freshEl, posts, alertUserIds);
 
@@ -1418,6 +1495,10 @@ async function startOrOpenConversation(postId, ownerId) {
     content: '👋 Bonjour ! Je vous contacte suite à votre publication sur Voisy.'
   });
 
+  insertNotif(ownerId, 'reply',
+    `${state.profile?.prenom || 'Un habitant'} a répondu à votre publication.`,
+    `conversation:${conv.id}`);
+
   navigate('conversation', { convId: conv.id });
 }
 
@@ -1546,6 +1627,7 @@ async function renderConversation(convId) {
   if (!conv) { navigate('messages'); return; }
 
   const other = conv.p1?.id === state.user.id ? conv.p2 : conv.p1;
+  state.currentConvOtherId = other?.id || null;
   const postPreview = conv.posts ? `${getCatIcon(conv.posts.categorie)} ${conv.posts.description?.substring(0,50)}…` : '';
   const avatarEl = other?.photo_url
     ? `<div class="conv-avatar"><img src="${esc(other.photo_url)}" alt="${esc(other?.prenom)}"></div>`
@@ -1648,6 +1730,11 @@ async function sendMessage(convId) {
   });
 
   if (error) { showToast('Erreur d\'envoi.', 'error'); return; }
+  if (state.currentConvOtherId && state.currentConvOtherId !== state.user?.id) {
+    insertNotif(state.currentConvOtherId, 'message',
+      `${state.profile?.prenom || 'Un habitant'} vous a envoyé un message.`,
+      `conversation:${convId}`);
+  }
   await loadMessages(convId);
 }
 
@@ -1685,6 +1772,140 @@ function updateMsgBadge(count) {
     }
   } else {
     $badge.classList.add('hidden');
+  }
+}
+
+// ===== NOTIFICATIONS =====
+async function insertNotif(userId, type, content, link) {
+  if (!state.user || !userId) return;
+  try {
+    await db.from('notifications').insert({ user_id: userId, type, content, link: link || null });
+  } catch { /* non-critique */ }
+}
+
+async function refreshNotifCount() {
+  if (!state.user) return;
+  try {
+    const { count } = await db.from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', state.user.id)
+      .eq('read', false);
+    updateNotifBadge(count || 0);
+  } catch { /* ignore */ }
+}
+
+function updateNotifBadge(count) {
+  const el = document.getElementById('notif-badge');
+  if (!el) return;
+  if (count > 0) {
+    el.textContent = count > 9 ? '9+' : count;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+async function checkExpiryNotifs() {
+  if (!state.user || state.expiryNotifChecked) return;
+  state.expiryNotifChecked = true;
+  try {
+    const in3days = new Date();
+    in3days.setDate(in3days.getDate() + 3);
+    const { data: posts } = await db.from('posts')
+      .select('id, description, expires_at')
+      .eq('user_id', state.user.id)
+      .eq('is_resolved', false)
+      .not('expires_at', 'is', null)
+      .lt('expires_at', in3days.toISOString())
+      .gt('expires_at', new Date().toISOString());
+    if (!posts?.length) return;
+    // Only notify for posts not already notified today
+    const since = new Date(); since.setHours(0,0,0,0);
+    const { data: recent } = await db.from('notifications')
+      .select('content')
+      .eq('user_id', state.user.id)
+      .eq('type', 'expiry')
+      .gte('created_at', since.toISOString());
+    const alreadyNotified = new Set((recent || []).map(n => n.content));
+    for (const p of posts) {
+      const daysLeft = Math.ceil((new Date(p.expires_at) - new Date()) / 86400000);
+      const msg = `Votre publication "${p.description?.substring(0,40)}…" expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''}.`;
+      if (!alreadyNotified.has(msg)) {
+        await insertNotif(state.user.id, 'expiry', msg, null);
+      }
+    }
+  } catch { /* non-critique */ }
+}
+
+async function renderNotifications() {
+  $app.innerHTML = `
+    <div class="notif-screen">
+      <div class="top-bar">
+        <button class="top-bar-back" onclick="navigate('feed')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Retour
+        </button>
+        <div style="font-size:17px;font-weight:800">Notifications</div>
+        <div style="width:80px"></div>
+      </div>
+      <div id="notif-list">${feedSkeletonHTML()}</div>
+    </div>`;
+
+  const watchdog = startWatchdog('#notif-list', 10_000);
+
+  try {
+    const { data: notifs } = await withTimeout(
+      db.from('notifications')
+        .select('*')
+        .eq('user_id', state.user.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+    );
+
+    clearTimeout(watchdog);
+
+    db.from('notifications')
+      .update({ read: true })
+      .eq('user_id', state.user.id)
+      .eq('read', false)
+      .then(() => updateNotifBadge(0));
+
+    const listEl = document.getElementById('notif-list');
+    if (!listEl) return;
+
+    if (!notifs?.length) {
+      listEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🔔</div>
+          <div class="empty-title">Aucune notification</div>
+          <div class="empty-text">Vos notifications apparaîtront ici.</div>
+        </div>`;
+      return;
+    }
+
+    listEl.innerHTML = notifs.map(n => {
+      const icon = { message: '💬', reply: '🤝', rating: '⭐', expiry: '⏳' }[n.type] || '🔔';
+      const convId = n.link?.startsWith('conversation:') ? n.link.replace('conversation:', '') : null;
+      return `
+        <div class="notif-item ${n.read ? '' : 'unread'}"${convId ? ` data-conv-id="${esc(convId)}"` : ''}>
+          <div class="notif-icon">${icon}</div>
+          <div class="notif-body">
+            <div class="notif-text">${esc(n.content)}</div>
+            <div class="notif-time">${formatRelTime(n.created_at)}</div>
+          </div>
+          ${!n.read ? '<div class="notif-dot"></div>' : ''}
+        </div>`;
+    }).join('');
+
+    listEl.addEventListener('click', e => {
+      const item = e.target.closest('[data-conv-id]');
+      if (item) navigate('conversation', { convId: item.dataset.convId });
+    });
+
+  } catch {
+    clearTimeout(watchdog);
+    const listEl = document.getElementById('notif-list');
+    if (listEl) listEl.innerHTML = loadErrorHTML();
   }
 }
 
@@ -2340,6 +2561,9 @@ async function submitRating(ratedId, postId, score, comment) {
     status: 'pending'
   });
   if (error) { console.error(error); return false; }
+  insertNotif(ratedId, 'rating',
+    `${state.profile?.prenom || 'Un habitant'} a noté votre interaction (${score}/5).`,
+    null);
   return true;
 }
 
@@ -2454,6 +2678,14 @@ async function init() {
         refreshUnreadCount();
       })
       .subscribe();
+    db.channel('global-notifs')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'notifications',
+        filter: `user_id=eq.${uid}`
+      }, () => {
+        refreshNotifCount();
+      })
+      .subscribe();
   }
 
   if (session?.user) setupGlobalChannels(session.user.id);
@@ -2470,7 +2702,10 @@ async function init() {
     } else {
       navigate('feed');
       refreshUnreadCount();
+      refreshNotifCount();
+      checkExpiryNotifs();
       setInterval(refreshUnreadCount, 30000);
+      setInterval(refreshNotifCount, 60000);
     }
   } else {
     navigate('landing');
@@ -2487,7 +2722,10 @@ async function init() {
       } else if (['login', 'register', 'landing'].includes(state.view)) {
         navigate('feed');
         refreshUnreadCount();
+        refreshNotifCount();
+        checkExpiryNotifs();
         setInterval(refreshUnreadCount, 30000);
+        setInterval(refreshNotifCount, 60000);
       }
     }
     if (event === 'SIGNED_OUT') {
