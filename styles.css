@@ -468,6 +468,12 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   white-space: nowrap; letter-spacing: 0.04em;
 }
 .filter-chip.active { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.filter-chip.active[data-filter="Entraide"]   { background: #2D9B6F; border-color: #2D9B6F; }
+.filter-chip.active[data-filter="Animaux"]    { background: #E8834A; border-color: #E8834A; }
+.filter-chip.active[data-filter="Sport"]      { background: #4A90E2; border-color: #4A90E2; }
+.filter-chip.active[data-filter="Sorties"]    { background: #9B6FD4; border-color: #9B6FD4; }
+.filter-chip.active[data-filter="Objets"]     { background: #C4A84A; border-color: #C4A84A; }
+.filter-chip.active[data-filter="Événements"] { background: #E24A7A; border-color: #E24A7A; }
 .feed-list { padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ===== POST CARD ===== */
@@ -477,12 +483,12 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   border: 1px solid var(--border);
   overflow: hidden;
 }
-.post-card[data-categorie="Entraide"]    { border-left: 4px solid #2D9B6F; }
-.post-card[data-categorie="Animaux"]     { border-left: 4px solid #E8834A; }
-.post-card[data-categorie="Sport"]       { border-left: 4px solid #4A90E2; }
-.post-card[data-categorie="Sorties"]     { border-left: 4px solid #9B6FD4; }
-.post-card[data-categorie="Objets"]      { border-left: 4px solid #C4A84A; }
-.post-card[data-categorie="Événements"]  { border-left: 4px solid #E24A7A; }
+.post-card[data-categorie="Entraide"]    { border-left: 4px solid #2D9B6F; background: rgba(45,155,111,0.05); }
+.post-card[data-categorie="Animaux"]     { border-left: 4px solid #E8834A; background: rgba(232,131,74,0.05); }
+.post-card[data-categorie="Sport"]       { border-left: 4px solid #4A90E2; background: rgba(74,144,226,0.05); }
+.post-card[data-categorie="Sorties"]     { border-left: 4px solid #9B6FD4; background: rgba(155,111,212,0.05); }
+.post-card[data-categorie="Objets"]      { border-left: 4px solid #C4A84A; background: rgba(196,168,74,0.05); }
+.post-card[data-categorie="Événements"]  { border-left: 4px solid #E24A7A; background: rgba(226,74,122,0.05); }
 .post-card-header { padding: 16px 16px 12px; display: flex; align-items: center; gap: 12px; }
 .post-avatar {
   width: 40px; height: 40px; border-radius: 50%;
