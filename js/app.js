@@ -233,39 +233,10 @@ function avatarHTML(profile, size = 'small') {
 }
 
 // ===== AUTH =====
-const AUTH_BG_IMGS = [
-  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=70&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&q=70&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1516939884455-1445c8652f83?w=800&q=70&auto=format&fit=crop',
-];
-
-function authHeroBgHTML() {
-  return `
-    <div class="auth-hero-bg" aria-hidden="true">
-      ${AUTH_BG_IMGS.map((src, i) => `<img class="auth-bg-img${i === 0 ? ' active' : ''}" src="${src}" alt="" loading="lazy">`).join('')}
-      <div class="auth-hero-overlay"></div>
-    </div>`;
-}
-
-function startAuthBgSlideshow() {
-  const imgs = document.querySelectorAll('.auth-bg-img');
-  if (!imgs.length) return;
-  let current = 0;
-  clearInterval(state.authBgTimer);
-  state.authBgTimer = setInterval(() => {
-    const all = document.querySelectorAll('.auth-bg-img');
-    if (!all.length) { clearInterval(state.authBgTimer); return; }
-    all[current].classList.remove('active');
-    current = (current + 1) % all.length;
-    all[current].classList.add('active');
-  }, 4000);
-}
-
 function renderLogin() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
-        ${authHeroBgHTML()}
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
@@ -298,7 +269,6 @@ function renderLogin() {
       </div>
     </div>`;
 
-  startAuthBgSlideshow();
   document.getElementById('tab-login').onclick = () => navigate('login');
   document.getElementById('tab-register').onclick = () => navigate('register');
   document.getElementById('btn-login').onclick = handleLogin;
@@ -468,7 +438,6 @@ function renderRegister() {
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
-        ${authHeroBgHTML()}
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
@@ -518,7 +487,6 @@ function renderRegister() {
       </div>
     </div>`;
 
-  startAuthBgSlideshow();
   document.getElementById('tab-login').onclick = () => navigate('login');
   document.getElementById('tab-register').onclick = () => navigate('register');
   document.getElementById('btn-register').onclick = handleRegister;
@@ -789,6 +757,24 @@ async function loadCurrentProfile() {
 }
 
 // ===== FEED =====
+const NEIGHBORHOOD_IMGS = [
+  'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&q=70&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1543269865-cbf427effbad?w=800&q=70&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1516939884455-1445c8652f83?w=800&q=70&auto=format&fit=crop',
+];
+
+function startFeedPhotoSlideshow() {
+  let current = 0;
+  clearInterval(state.authBgTimer);
+  state.authBgTimer = setInterval(() => {
+    const all = document.querySelectorAll('.feed-photo-slide');
+    if (!all.length) { clearInterval(state.authBgTimer); return; }
+    all[current].classList.remove('active');
+    current = (current + 1) % all.length;
+    all[current].classList.add('active');
+  }, 4000);
+}
+
 async function renderFeed() {
   $app.innerHTML = `
     <div>
@@ -815,6 +801,10 @@ async function renderFeed() {
           <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
           <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
         </div>
+        <div class="feed-photo-banner" aria-hidden="true">
+          ${NEIGHBORHOOD_IMGS.map((src, i) => `<img class="feed-photo-slide${i === 0 ? ' active' : ''}" src="${src}" alt="" loading="lazy">`).join('')}
+          <div class="feed-photo-overlay"></div>
+        </div>
         <div class="feed-meta">📍 ${esc(state.profile?.quartier || 'Angers')}</div>
         <div class="filter-bar-wrap">
           <button class="filter-arrow hidden" id="filter-arrow-left" aria-label="Défiler à gauche">
@@ -835,6 +825,7 @@ async function renderFeed() {
       </div>
     </div>`;
 
+  startFeedPhotoSlideshow();
   document.getElementById('filter-bar').addEventListener('click', e => {
     const chip = e.target.closest('.filter-chip');
     if (!chip) return;
