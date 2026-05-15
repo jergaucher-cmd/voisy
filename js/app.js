@@ -268,7 +268,6 @@ function renderLogin() {
         ${authHeroBgHTML()}
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <h1>Voisy</h1>
-        <p class="auth-tagline">Ici, c'est l'entraide gratuite.</p>
         <p>Mon quartier prend vie</p>
       </div>
       <div class="auth-body">
@@ -472,7 +471,6 @@ function renderRegister() {
         ${authHeroBgHTML()}
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <h1>Voisy</h1>
-        <p class="auth-tagline">Ici, c'est l'entraide gratuite.</p>
         <p>Mon quartier prend vie</p>
       </div>
       <div class="auth-body">
@@ -814,8 +812,8 @@ async function renderFeed() {
             <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
             <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
           </svg>
-          <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
           <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
+          <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
         </div>
         <div class="feed-meta">📍 ${esc(state.profile?.quartier || 'Angers')}</div>
         <div class="filter-bar-wrap">
