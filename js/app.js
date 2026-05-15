@@ -239,7 +239,7 @@ function renderLogin() {
       <div class="auth-hero">
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <div class="auth-hero-chevron">
-          <svg width="40" height="28" viewBox="0 0 80 56" fill="none">
+          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.90)"/>
             <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.50)"/>
           </svg>
@@ -446,7 +446,7 @@ function renderRegister() {
       <div class="auth-hero">
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
         <div class="auth-hero-chevron">
-          <svg width="40" height="28" viewBox="0 0 80 56" fill="none">
+          <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
             <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.90)"/>
             <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.50)"/>
           </svg>
@@ -811,11 +811,11 @@ async function renderFeed() {
               <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
               <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
             </svg>
-            <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
           </div>
           <div class="feed-photo-banner" aria-hidden="true">
             ${NEIGHBORHOOD_IMGS.map((src, i) => `<img class="feed-photo-slide${i === 0 ? ' active' : ''}" src="${src}" alt="" loading="lazy">`).join('')}
             <div class="feed-photo-overlay"></div>
+            <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
           </div>
         </div>
         <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>

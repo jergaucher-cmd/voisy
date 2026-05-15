@@ -267,7 +267,7 @@ img { display: block; max-width: 100%; }
   margin-bottom: 6px; margin-right: -3em;
   position: relative; z-index: 2;
 }
-.auth-hero p { font-size: 10px; color: rgba(255,255,255,0.45); font-weight: 600; line-height: 1.5; letter-spacing: 0.22em; text-transform: uppercase; position: relative; z-index: 2; }
+.auth-hero p { font-size: 10px; color: rgba(255,255,255,0.45); font-weight: 600; line-height: 1.5; letter-spacing: 0.22em; text-transform: uppercase; position: relative; z-index: 2; margin-top: 18px; }
 .auth-body { padding: 36px 24px; flex: 1; }
 .auth-tabs {
   display: flex; background: rgba(13,43,30,0.06); border-radius: 4px; padding: 3px; margin-bottom: 32px;
@@ -381,9 +381,11 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   display: block; width: 100%; height: auto;
 }
 .feed-tagline {
-  font-size: 11px; font-style: italic; font-weight: 400;
-  color: rgba(255,255,255,0.72); text-align: center;
-  padding: 0 20px; margin-top: 6px;
+  position: absolute; z-index: 3;
+  bottom: 12px; right: 16px;
+  font-size: 11px; font-style: italic; font-weight: 500;
+  color: #FFFFFF;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 .feed-photo-banner {
   position: absolute; inset: 0; z-index: 2; overflow: hidden;
