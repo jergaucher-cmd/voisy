@@ -314,6 +314,18 @@ img { display: block; max-width: 100%; }
 textarea.form-input { min-height: 120px; resize: none; line-height: 1.5; }
 input[type="datetime-local"].form-input { cursor: pointer; }
 .form-error { font-size: 13px; color: #DC2626; margin-top: 6px; font-weight: 600; }
+
+/* ===== PASSWORD TOGGLE ===== */
+.pwd-wrap { position: relative; }
+.pwd-wrap .form-input { padding-right: 46px; }
+.pwd-toggle-btn {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); padding: 4px;
+  display: flex; align-items: center; border-radius: 4px;
+  transition: color 0.15s;
+}
+.pwd-toggle-btn:hover { color: var(--ink); }
 .form-hint  { font-size: 12px; color: var(--muted); margin-top: 6px; font-weight: 500; line-height: 1.4; }
 #expires-group.expires-required { background: rgba(13,43,30,0.04); border-radius: var(--radius); padding: 14px 16px; margin-left: -16px; margin-right: -16px; }
 #expires-group.expires-required .form-label { color: var(--ink); font-weight: 800; }
