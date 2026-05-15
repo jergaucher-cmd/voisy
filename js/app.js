@@ -66,7 +66,7 @@ const state = {
 const cache = { feed: {}, messages: null, messagesAt: 0 };
 
 // Wrap any Supabase promise with a hard timeout
-async function withTimeout(promise, ms = 4000) {
+async function withTimeout(promise, ms = 3000) {
   let id;
   const timer = new Promise((_, rej) => { id = setTimeout(() => rej(new Error('timeout')), ms); });
   try { const r = await Promise.race([promise, timer]); clearTimeout(id); return r; }
@@ -818,8 +818,10 @@ function renderWelcome() {
 // ===== PROFILE LOADING =====
 async function loadCurrentProfile() {
   if (!state.user) return;
-  const { data } = await db.from('profiles').select('*').eq('id', state.user.id).single();
-  state.profile = data;
+  try {
+    const { data } = await withTimeout(db.from('profiles').select('*').eq('id', state.user.id).single());
+    state.profile = data;
+  } catch { /* timeout silencieux — le profil sera null, les vues gèrent ce cas */ }
 }
 
 // ===== FEED =====
@@ -977,11 +979,11 @@ async function loadFeed(opts = {}) {
     if (userIds.length) {
       try {
         const { data: userRatings } = await withTimeout(
-          db.from('ratings').select('id, rated_id').in('rated_id', userIds), 5000);
+          db.from('ratings').select('id, rated_id').in('rated_id', userIds), 3000);
         if (userRatings?.length) {
           const { data: alerts } = await withTimeout(
             db.from('admin_alerts').select('rating_id').eq('resolved', false)
-              .in('rating_id', userRatings.map(r => r.id)), 5000);
+              .in('rating_id', userRatings.map(r => r.id)), 3000);
           (alerts || []).forEach(a => {
             const r = userRatings.find(x => x.id === a.rating_id);
             if (r) alertUserIds.add(r.rated_id);
@@ -1692,12 +1694,21 @@ async function renderProfile(userId) {
   const uid   = userId || state.user?.id;
 
   $app.innerHTML = '<div class="spinner" style="margin-top:80px"></div>';
+  const watchdog = startWatchdog('#app', 10_000);
 
-  const [profileRes, postsRes, ratingsRes] = await Promise.all([
-    db.from('profiles').select('*').eq('id', uid).single(),
-    db.from('posts').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(20),
-    db.from('ratings').select('id, score').eq('rated_id', uid)
-  ]);
+  let profileRes, postsRes, ratingsRes;
+  try {
+    [profileRes, postsRes, ratingsRes] = await withTimeout(Promise.all([
+      db.from('profiles').select('*').eq('id', uid).single(),
+      db.from('posts').select('*').eq('user_id', uid).order('created_at', { ascending: false }).limit(20),
+      db.from('ratings').select('id, score').eq('rated_id', uid)
+    ]));
+  } catch {
+    clearTimeout(watchdog);
+    $app.innerHTML = loadErrorHTML();
+    return;
+  }
+  clearTimeout(watchdog);
 
   const profile = profileRes.data;
   const posts   = postsRes.data || [];
@@ -1715,8 +1726,8 @@ async function renderProfile(userId) {
   let underReview = false;
   if (ratingsData.length) {
     const ratingIds = ratingsData.map(r => r.id);
-    const { data: alertData } = await db.from('admin_alerts')
-      .select('id').eq('resolved', false).in('rating_id', ratingIds).limit(1);
+    const { data: alertData } = await withTimeout(db.from('admin_alerts')
+      .select('id').eq('resolved', false).in('rating_id', ratingIds).limit(1)).catch(() => ({ data: null }));
     underReview = !!(alertData?.length);
   }
 
