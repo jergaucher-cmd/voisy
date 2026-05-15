@@ -477,6 +477,12 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   border: 1px solid var(--border);
   overflow: hidden;
 }
+.post-card[data-categorie="Entraide"]    { border-left: 4px solid #2D9B6F; }
+.post-card[data-categorie="Animaux"]     { border-left: 4px solid #E8834A; }
+.post-card[data-categorie="Sport"]       { border-left: 4px solid #4A90E2; }
+.post-card[data-categorie="Sorties"]     { border-left: 4px solid #9B6FD4; }
+.post-card[data-categorie="Objets"]      { border-left: 4px solid #C4A84A; }
+.post-card[data-categorie="Événements"]  { border-left: 4px solid #E24A7A; }
 .post-card-header { padding: 16px 16px 12px; display: flex; align-items: center; gap: 12px; }
 .post-avatar {
   width: 40px; height: 40px; border-radius: 50%;

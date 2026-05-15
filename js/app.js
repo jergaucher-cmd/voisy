@@ -1212,7 +1212,7 @@ function postCardHTML(post, alertUserIds = new Set()) {
   }
 
   return `
-    <article class="post-card" data-post-id="${esc(post.id)}">
+    <article class="post-card" data-post-id="${esc(post.id)}" data-categorie="${esc(post.categorie)}">
       <div class="post-card-header">
         <button data-action="profile" data-user-id="${esc(post.user_id)}" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:0">
           ${avatarEl}
