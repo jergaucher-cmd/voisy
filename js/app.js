@@ -786,6 +786,7 @@ function renderOnboarding() {
         <div class="zero-money-charter">
           <div class="zero-money-title">💚 Charte Voisy — Zéro argent</div>
           <p class="zero-money-text">Aucune transaction financière n'est autorisée sur Voisy — ni paiement, ni troc, ni pourboire. Voisy est 100% gratuit.</p>
+          <p class="zero-money-text" style="margin-top:8px">🏡 Les contenus à caractère sexuel ou destinés à un public adulte uniquement sont interdits — Voisy est un espace familial et bienveillant ouvert à tous.</p>
         </div>
 
         <label class="ob-pledge-label">
@@ -2568,6 +2569,7 @@ async function renderEditProfile() {
 function showReportModal(type, targetId) {
   const reasons = [
     'Contenu inapproprié ou offensant',
+    'Contenu à caractère sexuel ou inapproprié',
     'Spam ou fausse information',
     'Harcèlement ou intimidation',
     'Arnaque ou tentative de fraude',
