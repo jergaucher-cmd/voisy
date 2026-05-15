@@ -548,6 +548,11 @@ function renderRegister() {
           <input type="password" class="form-input" id="reg-pass" placeholder="Minimum 8 caractères" autocomplete="new-password">
         </div>
         <div class="form-group">
+          <label class="form-label">Confirmer le mot de passe</label>
+          <input type="password" class="form-input" id="reg-confirm" placeholder="Répétez votre mot de passe" autocomplete="new-password">
+          <div class="form-error hidden" id="reg-confirm-error">Les mots de passe ne correspondent pas.</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Votre quartier</label>
           <select class="form-select" id="reg-quartier">
             <option value="">Choisir un quartier…</option>
@@ -578,12 +583,28 @@ function renderRegister() {
   document.getElementById('tab-login').onclick = () => navigate('login');
   document.getElementById('tab-register').onclick = () => navigate('register');
   document.getElementById('btn-register').onclick = handleRegister;
+
+  const passEl    = document.getElementById('reg-pass');
+  const confirmEl = document.getElementById('reg-confirm');
+  const hintEl    = document.getElementById('reg-confirm-error');
+  const submitBtn = document.getElementById('btn-register');
+
+  function checkPasswordMatch() {
+    const confirm = confirmEl.value;
+    if (!confirm) { hintEl.classList.add('hidden'); submitBtn.disabled = false; return; }
+    const mismatch = passEl.value !== confirm;
+    hintEl.classList.toggle('hidden', !mismatch);
+    submitBtn.disabled = mismatch;
+  }
+  passEl.addEventListener('input', checkPasswordMatch);
+  confirmEl.addEventListener('input', checkPasswordMatch);
 }
 
 async function handleRegister() {
   const prenom       = document.getElementById('reg-prenom').value.trim();
   const email        = document.getElementById('reg-email').value.trim();
   const pass         = document.getElementById('reg-pass').value;
+  const confirm      = document.getElementById('reg-confirm').value;
   const quartier     = document.getElementById('reg-quartier').value;
   const birthdateVal = document.getElementById('reg-birthdate').value;
   const errEl        = document.getElementById('reg-error');
@@ -592,7 +613,8 @@ async function handleRegister() {
 
   const pledge = document.getElementById('reg-pledge')?.checked;
 
-  if (!prenom || !email || !pass || !quartier) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
+  if (!prenom || !email || !pass || !confirm || !quartier) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
+  if (pass !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; return; }
   if (!birthdateVal) { errEl.textContent = 'Veuillez indiquer votre date de naissance.'; return; }
   if (!pledge) { errEl.textContent = 'Merci d\'accepter cet engagement pour rejoindre Voisy.'; return; }
 
