@@ -589,6 +589,10 @@ function renderRegister() {
           <input type="text" class="form-input" id="reg-prenom" placeholder="Votre prénom" autocomplete="given-name">
         </div>
         <div class="form-group">
+          <label class="form-label">Nom de famille</label>
+          <input type="text" class="form-input" id="reg-last-name" placeholder="Votre nom de famille" autocomplete="family-name">
+        </div>
+        <div class="form-group">
           <label class="form-label">Email</label>
           <input type="email" class="form-input" id="reg-email" placeholder="votre@email.com" autocomplete="email">
         </div>
@@ -652,6 +656,7 @@ function renderRegister() {
 
 async function handleRegister() {
   const prenom       = document.getElementById('reg-prenom').value.trim();
+  const lastName     = document.getElementById('reg-last-name').value.trim();
   const email        = document.getElementById('reg-email').value.trim();
   const pass         = document.getElementById('reg-pass').value;
   const confirm      = document.getElementById('reg-confirm').value;
@@ -663,7 +668,7 @@ async function handleRegister() {
 
   const pledge = document.getElementById('reg-pledge')?.checked;
 
-  if (!prenom || !email || !pass || !confirm || !quartier) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
+  if (!prenom || !lastName || !email || !pass || !confirm || !quartier) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
   if (pass !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; return; }
   if (!birthdateVal) { errEl.textContent = 'Veuillez indiquer votre date de naissance.'; return; }
   if (!pledge) { errEl.textContent = 'Merci d\'accepter cet engagement pour rejoindre Voisy.'; return; }
@@ -693,6 +698,7 @@ async function handleRegister() {
       id: data.user.id,
       email,
       prenom,
+      last_name: lastName,
       quartier,
       birthdate: birthdateVal,
       age,
@@ -744,6 +750,13 @@ function renderOnboarding() {
           <input type="text" class="form-input" id="ob-prenom"
             placeholder="Comment vous appelle-t-on ?" maxlength="30" autocomplete="given-name"
             value="${esc(p?.prenom || '')}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Nom de famille <span style="color:var(--terracotta)">*</span></label>
+          <input type="text" class="form-input" id="ob-last-name"
+            placeholder="Votre nom de famille" maxlength="60" autocomplete="family-name"
+            value="${esc(p?.last_name || '')}">
         </div>
 
         <div class="form-group">
@@ -821,6 +834,7 @@ function renderOnboarding() {
 
 async function handleOnboardingSubmit() {
   const prenom          = document.getElementById('ob-prenom').value.trim();
+  const lastName        = document.getElementById('ob-last-name').value.trim();
   const quartier        = document.getElementById('ob-quartier').value;
   const presence_status = document.getElementById('ob-presence').value;
   const birthdateVal    = document.getElementById('ob-birthdate').value;
@@ -833,6 +847,7 @@ async function handleOnboardingSubmit() {
   const pledge = document.getElementById('ob-pledge')?.checked;
 
   if (!prenom)          { errEl.textContent = 'Le prénom est obligatoire.'; return; }
+  if (!lastName)        { errEl.textContent = 'Le nom de famille est obligatoire.'; return; }
   if (!quartier)        { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
   if (!presence_status) { errEl.textContent = 'Indiquez votre situation dans ce quartier.'; return; }
   if (!birthdateVal)    { errEl.textContent = 'La date de naissance est obligatoire.'; return; }
@@ -849,6 +864,7 @@ async function handleOnboardingSubmit() {
     id:             state.user.id,
     email:          state.user.email,
     prenom,
+    last_name:      lastName,
     quartier,
     presence_status,
     birthdate:      birthdateVal,
