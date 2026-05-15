@@ -27,6 +27,12 @@ const PRESENCE_OPTIONS = [
   { value: 'passage',   label: 'Je suis de passage', icon: '🌍' },
 ];
 
+const ENERGY_OPTIONS = [
+  { value: 'calme',         label: 'Plutôt calme et discret',                    icon: '🌿' },
+  { value: 'sociable',      label: 'Sociable et ouvert',                          icon: '☀️' },
+  { value: 'tres_sociable', label: "Très sociable, j'adore rencontrer du monde", icon: '⚡' },
+];
+
 function presenceLabel(value) {
   const opt = PRESENCE_OPTIONS.find(o => o.value === value);
   return opt ? `${opt.icon} ${opt.label}` : '';
@@ -39,6 +45,20 @@ function presenceBtnsHTML(groupId, selected = '') {
         <span class="presence-btn-icon">${o.icon}</span>${o.label}
       </button>`).join('')}
   </div>`;
+}
+
+function energyBtnsHTML(groupId, selected = '') {
+  return `<div class="energy-btn-group" id="${groupId}" role="group">
+    ${ENERGY_OPTIONS.map(o => `
+      <button type="button" class="energy-btn${selected === o.value ? ' active' : ''}" data-value="${o.value}">
+        <span class="energy-btn-icon">${o.icon}</span>${o.label}
+      </button>`).join('')}
+  </div>`;
+}
+
+function energyLabel(value) {
+  const opt = ENERGY_OPTIONS.find(o => o.value === value);
+  return opt ? `${opt.icon} ${opt.label}` : '';
 }
 
 // ===== INIT SUPABASE =====
@@ -2152,6 +2172,8 @@ async function renderProfile(userId) {
         ${ratingStats ? `<div class="profile-rating"><span class="stars-text">${starsDisplay(ratingStats.avg)}</span> <strong>${ratingStats.avg}</strong> · ${ratingStats.count} interaction${ratingStats.count > 1 ? 's' : ''}</div>` : ''}
         ${infoPills}
         ${showBio && profile.bio ? `<div class="profile-bio">${esc(profile.bio)}</div>` : ''}
+        ${profile.energy_type ? `<div class="profile-energy-badge energy-${esc(profile.energy_type)}">${energyLabel(profile.energy_type)}</div>` : ''}
+        ${profile.about_me ? `<div class="profile-about-me">${esc(profile.about_me)}</div>` : ''}
         ${ownHiddenNote}
       </div>
 
@@ -2365,6 +2387,18 @@ async function renderEditProfile() {
       </div>
 
       <div class="form-group">
+        <label class="form-label">Énergie sociale <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(optionnelle)</span></label>
+        ${energyBtnsHTML('edit-energy-group', p?.energy_type || '')}
+        <input type="hidden" id="edit-energy" value="${esc(p?.energy_type || '')}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">En quelques mots, je suis… <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(optionnel)</span></label>
+        <input type="text" class="form-input" id="edit-about-me" placeholder="Curieux, bricoleur, passionné de cuisine…" maxlength="150" value="${esc(p?.about_me || '')}">
+        <div class="char-count" id="about-me-count">${(p?.about_me || '').length} / 150</div>
+      </div>
+
+      <div class="form-group">
         <label class="form-label">Téléphone <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(optionnel — non affiché publiquement)</span></label>
         <input type="tel" class="form-input" id="edit-phone"
           placeholder="+33 6 xx xx xx xx" value="${esc(p?.phone || '')}" autocomplete="tel">
@@ -2406,12 +2440,29 @@ async function renderEditProfile() {
     document.getElementById('bio-count').textContent = `${e.target.value.length} / 150`;
   });
 
+  document.getElementById('edit-about-me').addEventListener('input', e => {
+    document.getElementById('about-me-count').textContent = `${e.target.value.length} / 150`;
+  });
+
   document.getElementById('edit-presence-group').addEventListener('click', e => {
     const btn = e.target.closest('.presence-btn');
     if (!btn) return;
     document.querySelectorAll('#edit-presence-group .presence-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('edit-presence').value = btn.dataset.value;
+  });
+
+  document.getElementById('edit-energy-group').addEventListener('click', e => {
+    const btn = e.target.closest('.energy-btn');
+    if (!btn) return;
+    const alreadyActive = btn.classList.contains('active');
+    document.querySelectorAll('#edit-energy-group .energy-btn').forEach(b => b.classList.remove('active'));
+    if (!alreadyActive) {
+      btn.classList.add('active');
+      document.getElementById('edit-energy').value = btn.dataset.value;
+    } else {
+      document.getElementById('edit-energy').value = '';
+    }
   });
 
   document.getElementById('edit-avatar-upload').onchange = handleAvatarUpload;
@@ -2446,6 +2497,8 @@ async function renderEditProfile() {
     const birthdateVal    = document.getElementById('edit-birthdate').value;
     const gender          = document.getElementById('edit-gender').value;
     const bio             = document.getElementById('edit-bio').value.trim();
+    const energy_type     = document.getElementById('edit-energy').value || null;
+    const about_me        = document.getElementById('edit-about-me').value.trim() || null;
     const phone           = document.getElementById('edit-phone').value.trim();
     const btn             = document.getElementById('btn-save-profile');
     const errEl           = document.getElementById('edit-error');
@@ -2466,13 +2519,13 @@ async function renderEditProfile() {
 
     showLoading(btn, true);
     const { error } = await db.from('profiles')
-      .update({ prenom, quartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, phone: phone || null })
+      .update({ prenom, quartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, energy_type, about_me, phone: phone || null })
       .eq('id', state.user.id);
     showLoading(btn, false);
 
     if (error) { errEl.textContent = 'Erreur lors de la sauvegarde.'; return; }
 
-    state.profile = { ...state.profile, prenom, quartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, phone: phone || null };
+    state.profile = { ...state.profile, prenom, quartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, energy_type, about_me, phone: phone || null };
     showToast('Profil mis à jour !');
     navigate('profile');
   };
