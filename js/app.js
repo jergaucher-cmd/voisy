@@ -238,6 +238,12 @@ function renderLogin() {
     <div class="auth-screen">
       <div class="auth-hero">
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
+        <div class="auth-hero-chevron">
+          <svg width="40" height="28" viewBox="0 0 80 56" fill="none">
+            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.90)"/>
+            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.50)"/>
+          </svg>
+        </div>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
       </div>
@@ -439,6 +445,12 @@ function renderRegister() {
     <div class="auth-screen">
       <div class="auth-hero">
         <button class="auth-back-btn" onclick="navigate('landing')">← Retour</button>
+        <div class="auth-hero-chevron">
+          <svg width="40" height="28" viewBox="0 0 80 56" fill="none">
+            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.90)"/>
+            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.50)"/>
+          </svg>
+        </div>
         <h1>Voisy</h1>
         <p>Mon quartier prend vie</p>
       </div>
@@ -779,32 +791,34 @@ async function renderFeed() {
   $app.innerHTML = `
     <div>
       <div class="feed-header">
-        <div class="feed-title-wrap">
-          <svg class="feed-title-svg" viewBox="0 0 360 92" xmlns="http://www.w3.org/2000/svg"
-               fill="none" stroke="#0D2B1E" stroke-linecap="round" stroke-linejoin="round">
-            <!-- V : bras gauche depuis le bord gauche -->
-            <line x1="0"  y1="10" x2="36" y2="82" stroke-width="2.5"/>
-            <line x1="72" y1="10" x2="36" y2="82" stroke-width="2.5"/>
-            <!-- O -->
-            <ellipse cx="118" cy="46" rx="34" ry="36" stroke-width="2.5"/>
-            <!-- I avec empattements fins -->
-            <line x1="170" y1="10" x2="170" y2="82" stroke-width="2.5"/>
-            <line x1="162" y1="10" x2="178" y2="10" stroke-width="0.7"/>
-            <line x1="162" y1="82" x2="178" y2="82" stroke-width="0.7"/>
-            <!-- S : courbe unique de haut-droit vers bas-gauche -->
-            <path d="M254,10 C192,10 254,82 192,82" stroke-width="2.5"/>
-            <!-- Y : bras vers le bord droit, tige centrale -->
-            <line x1="265" y1="10" x2="312" y2="48" stroke-width="2.5"/>
-            <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
-            <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
-          </svg>
-          <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
-          <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
+        <div class="feed-hero">
+          <div class="feed-title-content">
+            <svg class="feed-title-svg" viewBox="0 0 360 92" xmlns="http://www.w3.org/2000/svg"
+                 fill="none" stroke="rgba(255,255,255,0.90)" stroke-linecap="round" stroke-linejoin="round">
+              <!-- V -->
+              <line x1="0"  y1="10" x2="36" y2="82" stroke-width="2.5"/>
+              <line x1="72" y1="10" x2="36" y2="82" stroke-width="2.5"/>
+              <!-- O -->
+              <ellipse cx="118" cy="46" rx="34" ry="36" stroke-width="2.5"/>
+              <!-- I -->
+              <line x1="170" y1="10" x2="170" y2="82" stroke-width="2.5"/>
+              <line x1="162" y1="10" x2="178" y2="10" stroke-width="0.7"/>
+              <line x1="162" y1="82" x2="178" y2="82" stroke-width="0.7"/>
+              <!-- S -->
+              <path d="M254,10 C192,10 254,82 192,82" stroke-width="2.5"/>
+              <!-- Y -->
+              <line x1="265" y1="10" x2="312" y2="48" stroke-width="2.5"/>
+              <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
+              <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
+            </svg>
+            <div class="feed-tagline">Ici, c'est l'entraide gratuite.</div>
+          </div>
+          <div class="feed-photo-banner" aria-hidden="true">
+            ${NEIGHBORHOOD_IMGS.map((src, i) => `<img class="feed-photo-slide${i === 0 ? ' active' : ''}" src="${src}" alt="" loading="lazy">`).join('')}
+            <div class="feed-photo-overlay"></div>
+          </div>
         </div>
-        <div class="feed-photo-banner" aria-hidden="true">
-          ${NEIGHBORHOOD_IMGS.map((src, i) => `<img class="feed-photo-slide${i === 0 ? ' active' : ''}" src="${src}" alt="" loading="lazy">`).join('')}
-          <div class="feed-photo-overlay"></div>
-        </div>
+        <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
         <div class="feed-meta">📍 ${esc(state.profile?.quartier || 'Angers')}</div>
         <div class="filter-bar-wrap">
           <button class="filter-arrow hidden" id="filter-arrow-left" aria-label="Défiler à gauche">
