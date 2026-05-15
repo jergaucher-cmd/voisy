@@ -66,7 +66,7 @@ const state = {
 const cache = { feed: {}, messages: null, messagesAt: 0 };
 
 // Wrap any Supabase promise with a hard timeout
-async function withTimeout(promise, ms = 8000) {
+async function withTimeout(promise, ms = 4000) {
   let id;
   const timer = new Promise((_, rej) => { id = setTimeout(() => rej(new Error('timeout')), ms); });
   try { const r = await Promise.race([promise, timer]); clearTimeout(id); return r; }
@@ -98,22 +98,21 @@ function msgSkeletonHTML() {
 }
 
 // Error state with retry button
-function loadErrorHTML(retryFn) {
-  window.__voisy_retry = retryFn;
+function loadErrorHTML() {
   return `
     <div class="load-error">
       <div class="load-error-icon">😕</div>
       <div class="load-error-text">Chargement impossible pour le moment.</div>
-      <button class="btn btn-outline load-error-btn" onclick="window.__voisy_retry()">Réessayer</button>
+      <button class="btn btn-outline load-error-btn" onclick="window.location.reload()">Réessayer</button>
     </div>`;
 }
 
 // Start watchdog: if selector still matches after ms, show error
-function startWatchdog(containerSelector, ms, retryFn) {
+function startWatchdog(containerSelector, ms) {
   return setTimeout(() => {
     const el = document.querySelector(containerSelector);
     if (el?.querySelector('.skeleton-card') || el?.querySelector('.spinner'))
-      el.innerHTML = loadErrorHTML(retryFn);
+      el.innerHTML = loadErrorHTML();
   }, ms);
 }
 
@@ -941,7 +940,7 @@ async function loadFeed(opts = {}) {
   }
 
   listEl.innerHTML = feedSkeletonHTML();
-  const watchdog = startWatchdog('#feed-list', 10_000, () => loadFeed({ forceRefresh: true }));
+  const watchdog = startWatchdog('#feed-list', 10_000);
 
   try {
     let query = db.from('posts')
@@ -998,7 +997,7 @@ async function loadFeed(opts = {}) {
   } catch {
     clearTimeout(watchdog);
     const el = document.getElementById('feed-list');
-    if (el) el.innerHTML = loadErrorHTML(() => loadFeed({ forceRefresh: true }));
+    if (el) el.innerHTML = loadErrorHTML();
   }
 }
 
@@ -1438,7 +1437,7 @@ async function renderMessages() {
       <div id="conv-list-container">${msgSkeletonHTML()}</div>
     </div>`;
 
-  const watchdog = startWatchdog('#conv-list-container', 10_000, () => navigate('messages'));
+  const watchdog = startWatchdog('#conv-list-container', 10_000);
 
   let convs, error;
   try {
@@ -1454,7 +1453,7 @@ async function renderMessages() {
   } catch {
     clearTimeout(watchdog);
     const el = document.getElementById('conv-list-container');
-    if (el) el.innerHTML = loadErrorHTML(() => navigate('messages'));
+    if (el) el.innerHTML = loadErrorHTML();
     return;
   }
   clearTimeout(watchdog);
