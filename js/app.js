@@ -55,12 +55,67 @@ const state = {
   user: null,
   profile: null,
   view: null,
-  feedFilter: 'all', // 'all' | 'mon-quartier' | category
+  feedFilter: 'all',
   realtimeSubscription: null,
   pendingConvParams: null,
   channelsSubscribed: false,
   authBgTimer: null,
 };
+
+// ===== CACHE (stale-while-revalidate) =====
+const cache = { feed: {}, messages: null, messagesAt: 0 };
+
+// Wrap any Supabase promise with a hard timeout
+async function withTimeout(promise, ms = 8000) {
+  let id;
+  const timer = new Promise((_, rej) => { id = setTimeout(() => rej(new Error('timeout')), ms); });
+  try { const r = await Promise.race([promise, timer]); clearTimeout(id); return r; }
+  catch (e) { clearTimeout(id); throw e; }
+}
+
+// Skeleton placeholders shown while data loads
+function feedSkeletonHTML() {
+  const card = `
+    <div class="skeleton-card">
+      <div class="skeleton-line" style="width:28%"></div>
+      <div class="skeleton-line" style="width:82%;margin-top:12px"></div>
+      <div class="skeleton-line" style="width:62%"></div>
+      <div class="skeleton-line" style="width:38%;margin-top:12px"></div>
+    </div>`;
+  return card.repeat(4);
+}
+
+function msgSkeletonHTML() {
+  const row = `
+    <div class="skeleton-card" style="display:flex;gap:12px;align-items:center">
+      <div class="skeleton-line" style="width:44px;height:44px;border-radius:50%;flex-shrink:0;margin:0"></div>
+      <div style="flex:1">
+        <div class="skeleton-line" style="width:40%"></div>
+        <div class="skeleton-line" style="width:70%;margin-top:8px"></div>
+      </div>
+    </div>`;
+  return row.repeat(5);
+}
+
+// Error state with retry button
+function loadErrorHTML(retryFn) {
+  window.__voisy_retry = retryFn;
+  return `
+    <div class="load-error">
+      <div class="load-error-icon">😕</div>
+      <div class="load-error-text">Chargement impossible pour le moment.</div>
+      <button class="btn btn-outline load-error-btn" onclick="window.__voisy_retry()">Réessayer</button>
+    </div>`;
+}
+
+// Start watchdog: if selector still matches after ms, show error
+function startWatchdog(containerSelector, ms, retryFn) {
+  return setTimeout(() => {
+    const el = document.querySelector(containerSelector);
+    if (el?.querySelector('.skeleton-card') || el?.querySelector('.spinner'))
+      el.innerHTML = loadErrorHTML(retryFn);
+  }, ms);
+}
 
 // ===== DOM =====
 const $app    = document.getElementById('app');
@@ -870,54 +925,84 @@ async function renderFeed() {
   loadFeed();
 }
 
-async function loadFeed() {
+async function loadFeed(opts = {}) {
   const listEl = document.getElementById('feed-list');
   if (!listEl) return;
-  listEl.innerHTML = '<div class="spinner"></div>';
 
-  let query = db.from('posts')
-    .select(`*, profiles(id, prenom, quartier, photo_url, show_photo, photo_verified, phone_verified, presence_status)`)
-    .eq('is_resolved', false)
-    .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const filter = state.feedFilter;
+  const cached = cache.feed[filter];
 
-  if (state.feedFilter === 'mon-quartier' && state.profile?.quartier) {
-    query = query.eq('quartier', state.profile.quartier);
-  } else if (!['all','mon-quartier'].includes(state.feedFilter)) {
-    query = query.eq('categorie', state.feedFilter);
-  }
-
-  const { data: posts, error } = await query;
-
-  if (!listEl) return;
-  if (error || !posts?.length) {
-    listEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🌱</div>
-        <div class="empty-title">Aucune publication</div>
-        <div class="empty-text">Soyez le premier à poster une entraide<br>dans votre quartier !</div>
-      </div>`;
+  // Serve stale cache immediately, refresh in background
+  if (cached && !opts.forceRefresh) {
+    renderFeedCards(listEl, cached.posts, cached.alertUserIds);
+    if (Date.now() - cached.at < 30_000) return;
+    loadFeed({ forceRefresh: true }); // silent background refresh
     return;
   }
 
-  // Batch-check des alertes admin actives pour les auteurs du feed
-  const userIds = [...new Set(posts.map(p => p.user_id))];
-  const alertUserIds = new Set();
-  if (userIds.length) {
-    const { data: userRatings } = await db.from('ratings')
-      .select('id, rated_id').in('rated_id', userIds);
-    if (userRatings?.length) {
-      const { data: alerts } = await db.from('admin_alerts')
-        .select('rating_id').eq('resolved', false)
-        .in('rating_id', userRatings.map(r => r.id));
-      (alerts || []).forEach(a => {
-        const r = userRatings.find(x => x.id === a.rating_id);
-        if (r) alertUserIds.add(r.rated_id);
-      });
-    }
-  }
+  listEl.innerHTML = feedSkeletonHTML();
+  const watchdog = startWatchdog('#feed-list', 10_000, () => loadFeed({ forceRefresh: true }));
 
+  try {
+    let query = db.from('posts')
+      .select(`*, profiles(id, prenom, quartier, photo_url, show_photo, photo_verified, phone_verified, presence_status)`)
+      .eq('is_resolved', false)
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (filter === 'mon-quartier' && state.profile?.quartier) {
+      query = query.eq('quartier', state.profile.quartier);
+    } else if (!['all','mon-quartier'].includes(filter)) {
+      query = query.eq('categorie', filter);
+    }
+
+    const { data: posts, error } = await withTimeout(query);
+    clearTimeout(watchdog);
+
+    const el = document.getElementById('feed-list');
+    if (!el) return;
+
+    if (error || !posts?.length) {
+      el.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🌱</div>
+          <div class="empty-title">Aucune publication</div>
+          <div class="empty-text">Soyez le premier à poster une entraide<br>dans votre quartier !</div>
+        </div>`;
+      return;
+    }
+
+    const userIds = [...new Set(posts.map(p => p.user_id))];
+    const alertUserIds = new Set();
+    if (userIds.length) {
+      try {
+        const { data: userRatings } = await withTimeout(
+          db.from('ratings').select('id, rated_id').in('rated_id', userIds), 5000);
+        if (userRatings?.length) {
+          const { data: alerts } = await withTimeout(
+            db.from('admin_alerts').select('rating_id').eq('resolved', false)
+              .in('rating_id', userRatings.map(r => r.id)), 5000);
+          (alerts || []).forEach(a => {
+            const r = userRatings.find(x => x.id === a.rating_id);
+            if (r) alertUserIds.add(r.rated_id);
+          });
+        }
+      } catch { /* alertes non-critiques */ }
+    }
+
+    cache.feed[filter] = { posts, alertUserIds, at: Date.now() };
+    const freshEl = document.getElementById('feed-list');
+    if (freshEl) renderFeedCards(freshEl, posts, alertUserIds);
+
+  } catch {
+    clearTimeout(watchdog);
+    const el = document.getElementById('feed-list');
+    if (el) el.innerHTML = loadErrorHTML(() => loadFeed({ forceRefresh: true }));
+  }
+}
+
+function renderFeedCards(listEl, posts, alertUserIds) {
   listEl.innerHTML = posts.map(p => postCardHTML(p, alertUserIds)).join('');
   listEl.querySelectorAll('.post-card').forEach((card, i) => {
     card.style.setProperty('--card-delay', `${Math.min(i * 80, 640)}ms`);
@@ -1350,18 +1435,29 @@ async function renderMessages() {
           </div>
         </div>
       </div>
-      <div id="conv-list-container"><div class="spinner"></div></div>
+      <div id="conv-list-container">${msgSkeletonHTML()}</div>
     </div>`;
 
-  const { data: convs, error } = await db.from('conversations')
-    .select(`
-      id, created_at, post_id,
-      posts(description, type, categorie),
-      p1:profiles!conversations_participant_1_fkey(id, prenom, photo_url),
-      p2:profiles!conversations_participant_2_fkey(id, prenom, photo_url)
-    `)
-    .or(`participant_1.eq.${state.user.id},participant_2.eq.${state.user.id}`)
-    .order('created_at', { ascending: false });
+  const watchdog = startWatchdog('#conv-list-container', 10_000, () => navigate('messages'));
+
+  let convs, error;
+  try {
+    ({ data: convs, error } = await withTimeout(db.from('conversations')
+      .select(`
+        id, created_at, post_id,
+        posts(description, type, categorie),
+        p1:profiles!conversations_participant_1_fkey(id, prenom, photo_url),
+        p2:profiles!conversations_participant_2_fkey(id, prenom, photo_url)
+      `)
+      .or(`participant_1.eq.${state.user.id},participant_2.eq.${state.user.id}`)
+      .order('created_at', { ascending: false })));
+  } catch {
+    clearTimeout(watchdog);
+    const el = document.getElementById('conv-list-container');
+    if (el) el.innerHTML = loadErrorHTML(() => navigate('messages'));
+    return;
+  }
+  clearTimeout(watchdog);
 
   const container = document.getElementById('conv-list-container');
   if (!container) return;

@@ -1182,6 +1182,35 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .filter-chip { transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s; }
 .filter-chip:active { transform: scale(0.95); }
 
+/* ===== SKELETON LOADERS ===== */
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 20px;
+  margin: 0 16px 12px;
+}
+.skeleton-line {
+  height: 11px; border-radius: 6px; margin-bottom: 8px;
+  background: linear-gradient(90deg, var(--border) 25%, #efefeb 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+.skeleton-line:last-child { margin-bottom: 0; }
+
+/* ===== LOAD ERROR STATE ===== */
+.load-error {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px 24px; gap: 12px; text-align: center;
+}
+.load-error-icon { font-size: 36px; }
+.load-error-text { font-size: 14px; color: var(--muted); font-weight: 500; }
+.load-error-btn { margin-top: 4px; }
+
 /* 7. Accessibilité — désactive tout pour prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
