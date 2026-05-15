@@ -724,31 +724,33 @@ function renderVerify(email) {
 
 // ===== ONBOARDING =====
 function renderOnboarding() {
+  const p = state.profile; // peut être un profil partiel issu de l'inscription
   $app.innerHTML = `
     <div class="auth-screen">
       <div class="auth-hero">
-        <div class="auth-hero-icon">
+        <div class="auth-hero-chevron">
           <svg width="34" height="24" viewBox="0 0 80 56" fill="none">
-            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.95)"/>
-            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.65)"/>
+            <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="rgba(255,255,255,0.90)"/>
+            <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.50)"/>
           </svg>
         </div>
-        <h1>Bienvenue !</h1>
-        <p>Dites-nous qui vous êtes pour rejoindre votre quartier.</p>
+        <h1>Voisy</h1>
+        <p>Bienvenue ! Dites-nous qui vous êtes.</p>
       </div>
 
       <div class="auth-body">
         <div class="form-group">
           <label class="form-label">Prénom <span style="color:var(--terracotta)">*</span></label>
           <input type="text" class="form-input" id="ob-prenom"
-            placeholder="Comment vous appelle-t-on ?" maxlength="30" autocomplete="given-name">
+            placeholder="Comment vous appelle-t-on ?" maxlength="30" autocomplete="given-name"
+            value="${esc(p?.prenom || '')}">
         </div>
 
         <div class="form-group">
           <label class="form-label">Votre quartier <span style="color:var(--terracotta)">*</span></label>
           <select class="form-select" id="ob-quartier">
             <option value="">Choisir un quartier…</option>
-            ${QUARTIERS.map(q => `<option value="${esc(q)}">${esc(q)}</option>`).join('')}
+            ${QUARTIERS.map(q => `<option value="${esc(q)}" ${p?.quartier === q ? 'selected' : ''}>${esc(q)}</option>`).join('')}
           </select>
         </div>
 
@@ -760,7 +762,8 @@ function renderOnboarding() {
 
         <div class="form-group">
           <label class="form-label">Date de naissance <span style="color:var(--terracotta)">*</span></label>
-          <input type="date" class="form-input" id="ob-birthdate" max="${max18Date()}" autocomplete="bday">
+          <input type="date" class="form-input" id="ob-birthdate" max="${max18Date()}" autocomplete="bday"
+            value="${esc(p?.birthdate || '')}">
           <div class="form-hint">Voisy est réservé aux personnes de 18 ans et plus.</div>
         </div>
 
@@ -2006,7 +2009,7 @@ async function renderProfile(userId) {
   const profile = profileRes.data;
   const posts   = postsRes.data || [];
 
-  if (!profile && isOwn)  { renderOnboarding(); return; }
+  if (isOwn && !profile?.presence_status) { renderOnboarding(); return; }
   if (!profile && !isOwn) { navigate('feed'); return; }
 
   // --- Notes & alerte admin ---
@@ -2802,7 +2805,7 @@ async function init() {
   if (session?.user) {
     state.user = session.user;
     await loadCurrentProfile();
-    if (!state.profile) {
+    if (!state.profile?.presence_status) {
       navigate('onboarding');
     } else {
       navigate('feed');
@@ -2822,7 +2825,7 @@ async function init() {
       state.user = session.user;
       setupGlobalChannels(session.user.id);
       await loadCurrentProfile();
-      if (!state.profile) {
+      if (!state.profile?.presence_status) {
         navigate('onboarding');
       } else if (['login', 'register', 'landing'].includes(state.view)) {
         navigate('feed');
