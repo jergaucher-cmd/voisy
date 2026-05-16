@@ -1087,6 +1087,7 @@ async function renderFeed() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
             </svg>
+            <span class="filter-icon-label">Filtres</span>
             <span class="filter-badge ${(state.feedTime || state.feedCat) ? '' : 'hidden'}" id="filter-badge">${(state.feedTime ? 1 : 0) + (state.feedCat ? 1 : 0) || ''}</span>
           </button>
         </div>

@@ -445,11 +445,15 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 
 .filter-icon-btn {
   position: relative; flex-shrink: 0;
-  width: 36px; height: 36px;
-  display: flex; align-items: center; justify-content: center;
+  padding: 5px 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: var(--white); border: 1.5px solid var(--border-mid);
   border-radius: var(--radius-sm); color: var(--muted);
   cursor: pointer; transition: all 0.15s;
+}
+.filter-icon-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); line-height: 1;
 }
 .filter-icon-btn:hover { border-color: var(--ink); color: var(--ink); }
 .filter-icon-btn:active { transform: scale(0.93); }
