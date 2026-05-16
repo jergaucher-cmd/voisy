@@ -214,13 +214,14 @@ img { display: block; max-width: 100%; }
 .post-btn-circle:active { transform: scale(0.93); background: rgba(13,43,30,0.8); }
 .post-btn-circle svg { stroke: var(--white); }
 .badge {
-  position: absolute; top: -4px; right: -8px;
-  background: var(--ink); color: var(--white);
-  font-size: 10px; font-weight: 700;
+  position: absolute; top: -5px; right: -7px;
+  background: #EF4444; color: #fff;
+  font-size: 10px; font-weight: 800;
   min-width: 18px; height: 18px;
-  border-radius: 2px; padding: 0 4px;
+  border-radius: 9px; padding: 0 5px;
   display: flex; align-items: center; justify-content: center;
   border: 2px solid var(--white);
+  pointer-events: none;
 }
 
 /* ===== TOP BAR ===== */

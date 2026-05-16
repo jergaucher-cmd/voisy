@@ -179,7 +179,7 @@ function navigate(view, params = {}) {
     case 'onboarding':   renderOnboarding(); break;
     case 'feed':            renderFeed(); break;
     case 'new-post':        renderNewPost(); break;
-    case 'messages':        renderMessages(); break;
+    case 'messages':        renderMessages(); refreshUnreadCount(); break;
     case 'conversation':    renderConversation(params.convId); break;
     case 'profile':         renderProfile(params.userId || null); break;
     case 'edit-profile':    renderEditProfile(); break;
@@ -3329,6 +3329,11 @@ async function init() {
     db.channel('global-msgs')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         if (payload.new?.sender_id && payload.new.sender_id !== uid) {
+          refreshUnreadCount();
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, payload => {
+        if (payload.new?.read === true && payload.old?.read === false) {
           refreshUnreadCount();
         }
       })
