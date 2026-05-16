@@ -3206,8 +3206,10 @@ async function submitRating(ratedId, postId, score, comment) {
   };
   if (postId) payload.post_id = postId;
 
-  const { error } = await db.from('ratings').insert(payload);
-  if (error) { console.error('submitRating error:', error.message, error.details); return false; }
+  console.log('[ratings] payload:', JSON.stringify(payload));
+  const { data, error } = await db.from('ratings').insert(payload).select();
+  console.log('[ratings] data:', data, '| error:', error ? JSON.stringify(error) : null);
+  if (error) { console.error('[ratings] code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint); return false; }
   insertNotif(ratedId, 'rating',
     `${state.profile?.prenom || 'Un habitant'} a noté votre interaction (${score}/5).`,
     null);
