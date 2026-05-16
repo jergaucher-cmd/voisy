@@ -2692,7 +2692,7 @@ async function renderProfile(userId) {
   if (isOwn) {
     document.getElementById('btn-edit-profile').onclick = () => navigate('edit-profile');
     document.getElementById('btn-logout').onclick = handleLogout;
-    document.getElementById('btn-rate-voisy').onclick = showRatingModal;
+    document.getElementById('btn-rate-voisy').onclick = showAppReviewModal;
     if (state.user?.email === 'jer.gaucher@gmail.com') loadAdminBadge();
     const uploadInput = document.getElementById('avatar-upload');
     if (uploadInput) uploadInput.onchange = handleAvatarUpload;
@@ -2762,7 +2762,7 @@ async function handleLogout() {
   navigate('login');
 }
 
-function showRatingModal() {
+function showAppReviewModal() {
   let selectedScore = 0;
 
   openModal(`
@@ -3197,15 +3197,17 @@ function showRatingModal(ratedId, ratedName, postId) {
 }
 
 async function submitRating(ratedId, postId, score, comment) {
-  const { error } = await db.from('ratings').insert({
+  const payload = {
     rater_id: state.user.id,
     rated_id: ratedId,
-    post_id: postId,
     score,
     comment: comment || null,
-    status: 'pending'
-  });
-  if (error) { console.error(error); return false; }
+    status: 'pending',
+  };
+  if (postId) payload.post_id = postId;
+
+  const { error } = await db.from('ratings').insert(payload);
+  if (error) { console.error('submitRating error:', error.message, error.details); return false; }
   insertNotif(ratedId, 'rating',
     `${state.profile?.prenom || 'Un habitant'} a noté votre interaction (${score}/5).`,
     null);
