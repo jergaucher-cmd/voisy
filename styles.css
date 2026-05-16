@@ -1674,3 +1674,11 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   font-size: 13px; font-weight: 700; color: var(--text-muted); cursor: pointer;
 }
 .btn-support:active { background: #F3F4F6; }
+
+/* Message original dans le modal de réponse support */
+.admin-support-original {
+  background: #F3F4F6; border-radius: 10px; padding: 12px 14px;
+  font-size: 13px; color: #6B7280; line-height: 1.6;
+  white-space: pre-wrap; word-break: break-word;
+  border-left: 3px solid #D1D5DB;
+}

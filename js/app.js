@@ -3448,7 +3448,7 @@ async function renderAdmin() {
       .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
       .eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
     db.from('support_messages')
-      .select('id, prenom, last_name, email, message, created_at, read')
+      .select('id, user_id, prenom, last_name, email, message, created_at, read')
       .eq('read', false).order('created_at', { ascending: false }).limit(50),
   ]);
 
@@ -3542,7 +3542,7 @@ async function renderAdmin() {
               <div class="admin-row-meta" style="margin-top:4px">${formatRelTime(s.created_at)}</div>
             </div>
             <div class="admin-row-actions">
-              <a class="admin-btn admin-btn-ghost" href="mailto:${esc(s.email)}?subject=Voisy%20Support">Répondre</a>
+              <button class="admin-btn admin-btn-ghost" onclick="adminReplySupportMessage('${s.id}','${s.user_id || ''}')">Répondre</button>
               <button class="admin-btn admin-btn-muted" onclick="adminMarkSupportRead('${s.id}')">Lu ✓</button>
             </div>
           </div>`).join('')
@@ -3614,6 +3614,95 @@ async function adminMarkSupportRead(msgId) {
   await db.from('support_messages').update({ read: true }).eq('id', msgId);
   const row = document.getElementById(`adminrow-${msgId}`);
   if (row) row.remove();
+}
+
+async function adminReplySupportMessage(msgId, userId) {
+  if (!userId) {
+    showToast('Cet utilisateur n\'a pas de compte Voisy associé.', 'error');
+    return;
+  }
+
+  // Fetch full message text
+  const { data: sm } = await db.from('support_messages')
+    .select('message, prenom').eq('id', msgId).single();
+  if (!sm) { showToast('Message introuvable.', 'error'); return; }
+
+  openModal(`
+    <div class="modal-title">Répondre à ${esc(sm.prenom || 'l\'utilisateur')}</div>
+    <div class="admin-support-original">${esc(sm.message)}</div>
+    <textarea class="form-input" id="sup-reply"
+      placeholder="Votre réponse…" maxlength="2000"
+      style="min-height:110px;resize:none;margin-top:16px"></textarea>
+    <div class="char-count" id="sup-reply-char" style="margin-bottom:16px">0 / 2000</div>
+    <div id="sup-reply-error" class="form-error" style="margin-bottom:8px"></div>
+    <button class="btn btn-primary" id="sup-reply-send">Envoyer la réponse</button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="margin-top:8px">Annuler</button>
+  `);
+
+  document.getElementById('sup-reply').addEventListener('input', e => {
+    document.getElementById('sup-reply-char').textContent = `${e.target.value.length} / 2000`;
+  });
+
+  document.getElementById('sup-reply-send').onclick = async () => {
+    const reply = document.getElementById('sup-reply').value.trim();
+    const errEl = document.getElementById('sup-reply-error');
+    if (!reply) { errEl.textContent = 'Veuillez écrire une réponse.'; return; }
+
+    const btn = document.getElementById('sup-reply-send');
+    showLoading(btn, true);
+
+    const adminId = state.user.id;
+
+    // Trouver ou créer une conversation directe (sans post) entre admin et user
+    let convId = null;
+
+    const { data: c1 } = await db.from('conversations')
+      .select('id').eq('participant_1', adminId).eq('participant_2', userId)
+      .is('post_id', null).limit(1);
+    if (c1?.length) {
+      convId = c1[0].id;
+    } else {
+      const { data: c2 } = await db.from('conversations')
+        .select('id').eq('participant_1', userId).eq('participant_2', adminId)
+        .is('post_id', null).limit(1);
+      if (c2?.length) {
+        convId = c2[0].id;
+      } else {
+        const { data: newConv, error: convErr } = await db.from('conversations')
+          .insert({ participant_1: adminId, participant_2: userId, post_id: null })
+          .select('id').single();
+        if (convErr) {
+          showLoading(btn, false);
+          errEl.textContent = 'Erreur lors de la création de la conversation.';
+          return;
+        }
+        convId = newConv.id;
+      }
+    }
+
+    // Insérer le message
+    const { error: msgErr } = await db.from('messages')
+      .insert({ conversation_id: convId, sender_id: adminId, content: reply });
+
+    if (msgErr) {
+      showLoading(btn, false);
+      errEl.textContent = 'Erreur lors de l\'envoi du message.';
+      return;
+    }
+
+    // Notification in-app pour l'utilisateur
+    insertNotif(userId, 'message',
+      `L'équipe Voisy vous a répondu.`,
+      `conversation:${convId}`);
+
+    // Marquer le message support comme lu
+    await db.from('support_messages').update({ read: true }).eq('id', msgId);
+    const row = document.getElementById(`adminrow-${msgId}`);
+    if (row) row.remove();
+
+    closeModal();
+    showToast('Réponse envoyée dans la messagerie de l\'utilisateur.');
+  };
 }
 
 async function adminRejectVerif(verifId) {
