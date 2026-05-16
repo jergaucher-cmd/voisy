@@ -415,6 +415,15 @@ async function handleLogin() {
   }
   state.user = data.user;
   await loadCurrentProfile();
+
+  if (state.profile?.banned) {
+    await db.auth.signOut();
+    state.user = null;
+    state.profile = null;
+    errEl.textContent = 'Votre compte a été suspendu. Contactez contact@voisy.eu pour plus d\'informations.';
+    return;
+  }
+
   navigate('feed');
 }
 
@@ -2679,6 +2688,11 @@ async function renderProfile(userId) {
           <a href="pages/privacy.html" target="_blank" style="font-size:12px;color:var(--text-light);margin-right:16px">Confidentialité</a>
           <button onclick="showDeleteAccountModal()" style="font-size:12px;color:var(--text-light);background:none;border:none;cursor:pointer">Supprimer mon compte</button>
         </div>` : ''}
+
+      ${state.user ? `
+        <div class="support-section">
+          <button class="btn-support" id="btn-support">💬 Contacter l'équipe Voisy</button>
+        </div>` : ''}
     </div>`;
 
   // Rebond des badges de confiance
@@ -2733,6 +2747,10 @@ async function renderProfile(userId) {
   if (reportBtn) {
     reportBtn.onclick = () => showReportModal(reportBtn.dataset.type, reportBtn.dataset.targetId);
   }
+
+  // Support button (visible for all authenticated users)
+  const supportBtn = document.getElementById('btn-support');
+  if (supportBtn) supportBtn.onclick = showSupportModal;
 }
 
 async function handleAvatarUpload(e) {
@@ -3419,9 +3437,7 @@ async function renderAdmin() {
       </div>
     </div>`;
 
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-
-  const [reportsRes, alertsRes, verifsRes, newProfilesRes] = await Promise.all([
+  const [reportsRes, alertsRes, verifsRes] = await Promise.all([
     db.from('reports')
       .select('id, target_type, target_id, reason, created_at, reporter:reporter_id(prenom)')
       .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
@@ -3431,15 +3447,11 @@ async function renderAdmin() {
     db.from('verification_requests')
       .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
       .eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
-    db.from('profiles')
-      .select('id, prenom, quartier, presence_status, created_at, photo_url')
-      .gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(50),
   ]);
 
-  const reports     = reportsRes.data || [];
-  const alerts      = alertsRes.data || [];
-  const verifs      = verifsRes.data || [];
-  const newProfiles = newProfilesRes.data || [];
+  const reports = reportsRes.data || [];
+  const alerts  = alertsRes.data || [];
+  const verifs  = verifsRes.data || [];
 
   const el = document.getElementById('admin-content');
   if (!el) return;
@@ -3461,6 +3473,7 @@ async function renderAdmin() {
               ${r.target_type === 'post' ? `
                 <button class="admin-btn admin-btn-danger" onclick="adminDeletePost('${r.target_id}','${r.id}')">Supprimer</button>` : ''}
               <button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${r.target_id}'})">Voir</button>
+              ${r.target_type === 'profile' ? `<button class="admin-btn admin-btn-danger" onclick="adminBanUser('${r.target_id}')">Bannir</button>` : ''}
               <button class="admin-btn admin-btn-muted" onclick="adminIgnoreReport('${r.id}')">Ignorer</button>
             </div>
           </div>`).join('')
@@ -3514,33 +3527,31 @@ async function renderAdmin() {
           }).join('')
     )}
 
-    ${adminSectionHTML('👥', 'Nouveaux comptes (7 jours)', newProfiles.length,
-      newProfiles.length === 0
-        ? '<div class="admin-empty">Aucun nouveau compte</div>'
-        : newProfiles.map(p => `
-          <div class="admin-row" id="adminrow-${p.id}">
-            <div class="admin-row-body" style="display:flex;align-items:center;gap:12px">
-              ${p.photo_url ? `<img src="${esc(p.photo_url)}" class="admin-avatar-sm">` : `<div class="admin-avatar-sm admin-avatar-empty">${esc((p.prenom||'?')[0].toUpperCase())}</div>`}
-              <div>
-                <div class="admin-row-name">${esc(p.prenom || '?')}</div>
-                <div class="admin-row-meta">${esc(p.quartier || '')}${p.presence_status ? ` · ${presenceLabel(p.presence_status)}` : ''} · ${formatRelTime(p.created_at)}</div>
-              </div>
-            </div>
-            <div class="admin-row-actions">
-              <button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${p.id}'})">Voir</button>
-            </div>
-          </div>`).join('')
-    )}
+    ${adminSectionHTML('👥', 'Nouveaux comptes (7 j)', 0, `
+      <div class="admin-search-row">
+        <input type="text" class="admin-search-input" id="admin-np-search"
+          placeholder="Rechercher par prénom ou email…"
+          oninput="adminNPSearch(this.value)">
+      </div>
+      <div id="admin-np-body"><div class="admin-empty">Chargement…</div></div>
+      <div id="admin-np-pagination"></div>
+    `, 'admin-np-count')}
   `;
+
+  _adminNPPage = 0;
+  _adminNPQuery = '';
+  loadAdminProfiles();
 }
 
-function adminSectionHTML(icon, title, count, bodyHTML) {
+function adminSectionHTML(icon, title, count, bodyHTML, countId) {
+  const cls = count > 0 ? 'admin-count-red' : 'admin-count-grey';
+  const idAttr = countId ? ` id="${countId}"` : '';
   return `
     <div class="admin-section">
       <div class="admin-section-header">
         <span class="admin-section-icon">${icon}</span>
         <span class="admin-section-title">${title}</span>
-        <span class="admin-count-badge ${count > 0 ? 'admin-count-red' : 'admin-count-grey'}">${count}</span>
+        <span class="admin-count-badge ${cls}"${idAttr}>${count}</span>
       </div>
       <div class="admin-section-body">${bodyHTML}</div>
     </div>`;
@@ -3583,6 +3594,160 @@ async function adminRejectVerif(verifId) {
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast('Demande rejetée.');
+}
+
+// ─── ADMIN : BAN + PAGINATION ─────────────────────────────────────────────────
+
+let _adminNPPage  = 0;
+let _adminNPQuery = '';
+const _ADMIN_NP_LIMIT = 20;
+
+function adminNPSearch(val) {
+  _adminNPQuery = val;
+  _adminNPPage  = 0;
+  loadAdminProfiles();
+}
+
+async function loadAdminProfiles() {
+  const bodyEl  = document.getElementById('admin-np-body');
+  const paginEl = document.getElementById('admin-np-pagination');
+  const countEl = document.getElementById('admin-np-count');
+  if (!bodyEl) return;
+
+  bodyEl.innerHTML = '<div class="admin-empty">Chargement…</div>';
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const start = _adminNPPage * _ADMIN_NP_LIMIT;
+
+  let query = db.from('profiles')
+    .select('id, prenom, email, quartier, presence_status, created_at, photo_url, banned', { count: 'exact' })
+    .gte('created_at', sevenDaysAgo)
+    .order('created_at', { ascending: false })
+    .range(start, start + _ADMIN_NP_LIMIT - 1);
+
+  const q = _adminNPQuery.trim();
+  if (q) query = query.or(`prenom.ilike.%${q}%,email.ilike.%${q}%`);
+
+  const { data, count } = await query;
+  const profiles   = data || [];
+  const total      = count || 0;
+  const totalPages = Math.max(1, Math.ceil(total / _ADMIN_NP_LIMIT));
+
+  if (countEl) {
+    countEl.textContent = total;
+    countEl.className   = `admin-count-badge ${total > 0 ? 'admin-count-red' : 'admin-count-grey'}`;
+  }
+
+  bodyEl.innerHTML = profiles.length === 0
+    ? '<div class="admin-empty">Aucun compte trouvé</div>'
+    : profiles.map(p => `
+        <div class="admin-row" id="adminrow-${p.id}">
+          <div class="admin-row-body" style="display:flex;align-items:center;gap:12px">
+            ${p.photo_url ? `<img src="${esc(p.photo_url)}" class="admin-avatar-sm">` : `<div class="admin-avatar-sm admin-avatar-empty">${esc((p.prenom||'?')[0].toUpperCase())}</div>`}
+            <div>
+              <div class="admin-row-name">${esc(p.prenom || '?')}${p.banned ? ' <span class="admin-tag tag-post" style="margin-left:6px">Banni</span>' : ''}</div>
+              <div class="admin-row-meta">${esc(p.email || '')} · ${esc(p.quartier || '')} · ${formatRelTime(p.created_at)}</div>
+            </div>
+          </div>
+          <div class="admin-row-actions">
+            <button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${p.id}'})">Voir</button>
+            ${!p.banned ? `<button class="admin-btn admin-btn-danger" onclick="adminBanUser('${p.id}')">Bannir</button>` : ''}
+          </div>
+        </div>`).join('');
+
+  if (paginEl) {
+    paginEl.innerHTML = totalPages > 1 ? `
+      <div class="admin-pagination">
+        <button class="admin-btn admin-btn-ghost" onclick="adminNPPrev()" ${_adminNPPage === 0 ? 'disabled' : ''}>← Précédent</button>
+        <span class="admin-pagination-info">Page ${_adminNPPage + 1} / ${totalPages} · ${total} comptes</span>
+        <button class="admin-btn admin-btn-ghost" onclick="adminNPNext(${totalPages})" ${_adminNPPage >= totalPages - 1 ? 'disabled' : ''}>Suivant →</button>
+      </div>` : '';
+  }
+}
+
+function adminNPPrev() { _adminNPPage = Math.max(0, _adminNPPage - 1); loadAdminProfiles(); }
+function adminNPNext(max) { _adminNPPage = Math.min(max - 1, _adminNPPage + 1); loadAdminProfiles(); }
+
+async function adminBanUser(userId) {
+  const { data: p } = await db.from('profiles')
+    .select('prenom, email').eq('id', userId).single();
+  const prenom = p?.prenom || 'cet utilisateur';
+  const email  = p?.email  || '';
+
+  if (!confirm(`Bannir ${prenom} ? Un email de suspension lui sera envoyé.`)) return;
+
+  const { error } = await db.from('profiles').update({ banned: true }).eq('id', userId);
+  if (error) { showToast('Erreur lors du bannissement.', 'error'); return; }
+
+  if (email) {
+    db.functions.invoke('send-ban-email', { body: { prenom, email } }).catch(() => {});
+  }
+
+  const row = document.getElementById(`adminrow-${userId}`);
+  if (row) {
+    const nameEl = row.querySelector('.admin-row-name');
+    if (nameEl) nameEl.innerHTML += ' <span class="admin-tag tag-post" style="margin-left:6px">Banni</span>';
+    const banBtn = row.querySelector('.admin-btn-danger');
+    if (banBtn) banBtn.remove();
+  }
+  showToast(`${prenom} a été banni.`);
+}
+
+// ─── SUPPORT ──────────────────────────────────────────────────────────────────
+
+function showSupportModal() {
+  openModal(`
+    <div class="modal-title">💬 Contacter l'équipe Voisy</div>
+    <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.55">
+      Votre message sera envoyé à <strong>contact@voisy.eu</strong>.<br>Nous vous répondrons sous 24h.
+    </p>
+    <textarea class="form-input" id="sup-msg"
+      placeholder="Votre message…" maxlength="1000"
+      style="min-height:120px;resize:none"></textarea>
+    <div class="char-count" id="sup-char" style="margin-bottom:16px">0 / 1000</div>
+    <div id="sup-error" class="form-error" style="margin-bottom:8px"></div>
+    <button class="btn btn-primary" id="sup-send">Envoyer</button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="margin-top:8px">Annuler</button>
+  `);
+
+  document.getElementById('sup-msg').addEventListener('input', e => {
+    document.getElementById('sup-char').textContent = `${e.target.value.length} / 1000`;
+  });
+
+  document.getElementById('sup-send').onclick = async () => {
+    const msg   = document.getElementById('sup-msg').value.trim();
+    const errEl = document.getElementById('sup-error');
+    if (msg.length < 10) { errEl.textContent = 'Veuillez écrire un message (min. 10 caractères).'; return; }
+
+    const btn = document.getElementById('sup-send');
+    showLoading(btn, true);
+
+    const { error } = await db.functions.invoke('send-support-message', {
+      body: {
+        prenom:    state.profile?.prenom    || '',
+        last_name: state.profile?.last_name || '',
+        email:     state.user?.email        || '',
+        user_id:   state.user?.id           || '',
+        message:   msg,
+      },
+    });
+
+    showLoading(btn, false);
+    if (error) { errEl.textContent = 'Erreur lors de l\'envoi. Réessayez.'; return; }
+
+    const sheet = document.querySelector('.modal-sheet');
+    if (sheet) {
+      sheet.innerHTML = `
+        <div style="text-align:center;padding:8px 0">
+          <div style="font-size:48px;margin-bottom:16px">✉️</div>
+          <div style="font-size:18px;font-weight:800;color:var(--ink);margin-bottom:10px">Message envoyé !</div>
+          <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin-bottom:24px">
+            Votre message a été envoyé à l'équipe Voisy.<br>Nous vous répondrons par email sous 24h.
+          </p>
+          <button class="btn btn-primary" onclick="closeModal()">Fermer</button>
+        </div>`;
+    }
+  };
 }
 
 init();
