@@ -75,9 +75,10 @@ const state = {
   user: null,
   profile: null,
   view: null,
-  feedFilter: 'all',
+  feedGeo: 'all',
+  feedCat: '',
+  feedTime: '',
   feedSearch: '',
-  feedTimeFilter: '',
   realtimeSubscription: null,
   pendingConvParams: null,
   channelsSubscribed: false,
@@ -1073,23 +1074,25 @@ async function renderFeed() {
             </button>
           </div>
         </div>
-        <div class="filter-bar-wrap">
-          <button class="filter-arrow hidden" id="filter-arrow-left" aria-label="Défiler à gauche">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <div class="feed-filter-bar" id="filter-bar">
-            <button class="filter-chip ${state.feedFilter === 'all' ? 'active' : ''}" data-filter="all">Tout Angers</button>
-            <button class="filter-chip ${state.feedFilter === 'mon-quartier' ? 'active' : ''}" data-filter="mon-quartier">Mon quartier</button>
-            ${CATEGORIES.map(c => `<button class="filter-chip ${state.feedFilter === c.id ? 'active' : ''}" data-filter="${esc(c.id)}">${c.icon} ${esc(c.label)}</button>`).join('')}
+        <div class="filter-panel">
+          <div class="filter-row-label">OÙ</div>
+          <div class="filter-row" id="geo-bar">
+            <button class="geo-chip ${state.feedGeo === 'all' ? 'active' : ''}" data-geo="all">Tout Angers</button>
+            <button class="geo-chip ${state.feedGeo === 'mon-quartier' ? 'active' : ''}" data-geo="mon-quartier">📍 Mon quartier</button>
           </div>
-          <button class="filter-arrow" id="filter-arrow-right" aria-label="Défiler à droite">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-        <div class="feed-time-bar" id="time-filter-bar">
-          <button class="time-chip ${state.feedTimeFilter === 'today' ? 'active' : ''}" data-time="today">📅 Aujourd'hui</button>
-          <button class="time-chip ${state.feedTimeFilter === 'weekend' ? 'active' : ''}" data-time="weekend">🗓 Ce weekend</button>
-          <button class="time-chip ${state.feedTimeFilter === 'week' ? 'active' : ''}" data-time="week">📆 Cette semaine</button>
+          <div class="filter-row-sep"></div>
+          <div class="filter-row-label">QUAND</div>
+          <div class="filter-row" id="time-bar">
+            <button class="time-chip ${!state.feedTime ? 'active' : ''}" data-time="">Tous</button>
+            <button class="time-chip ${state.feedTime === 'today' ? 'active' : ''}" data-time="today">📅 Aujourd'hui</button>
+            <button class="time-chip ${state.feedTime === 'weekend' ? 'active' : ''}" data-time="weekend">🗓 Ce weekend</button>
+            <button class="time-chip ${state.feedTime === 'week' ? 'active' : ''}" data-time="week">📆 Cette semaine</button>
+          </div>
+          <div class="filter-row-sep"></div>
+          <div class="filter-row-label">QUOI</div>
+          <div class="filter-row" id="cat-bar">
+            ${CATEGORIES.map(c => `<button class="cat-chip ${state.feedCat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${c.icon} ${esc(c.label)}</button>`).join('')}
+          </div>
         </div>
       </div>
       <div class="feed-list" id="feed-list">
@@ -1098,49 +1101,41 @@ async function renderFeed() {
     </div>`;
 
   startFeedPhotoSlideshow();
-  document.getElementById('filter-bar').addEventListener('click', e => {
-    const chip = e.target.closest('.filter-chip');
+  document.getElementById('geo-bar').addEventListener('click', e => {
+    const chip = e.target.closest('.geo-chip');
     if (!chip) return;
-    state.feedFilter = chip.dataset.filter;
-    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    state.feedGeo = chip.dataset.geo;
+    document.querySelectorAll('.geo-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
     cache.feed = {};
     loadFeed();
   });
 
-  document.getElementById('time-filter-bar').addEventListener('click', e => {
+  document.getElementById('time-bar').addEventListener('click', e => {
     const chip = e.target.closest('.time-chip');
     if (!chip) return;
-    const val = chip.dataset.time;
-    if (state.feedTimeFilter === val) {
-      state.feedTimeFilter = '';
+    state.feedTime = chip.dataset.time;
+    document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    cache.feed = {};
+    loadFeed();
+  });
+
+  document.getElementById('cat-bar').addEventListener('click', e => {
+    const chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    const val = chip.dataset.cat;
+    if (state.feedCat === val) {
+      state.feedCat = '';
       chip.classList.remove('active');
     } else {
-      state.feedTimeFilter = val;
-      document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+      state.feedCat = val;
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
     }
     cache.feed = {};
     loadFeed();
   });
-
-  // Flèches de navigation pour la barre de filtres
-  const filterBar   = document.getElementById('filter-bar');
-  const arrowLeft   = document.getElementById('filter-arrow-left');
-  const arrowRight  = document.getElementById('filter-arrow-right');
-
-  function updateFilterArrows() {
-    if (!filterBar) return;
-    const atStart = filterBar.scrollLeft <= 1;
-    const atEnd   = filterBar.scrollLeft >= filterBar.scrollWidth - filterBar.clientWidth - 1;
-    arrowLeft.classList.toggle('hidden', atStart);
-    arrowRight.classList.toggle('hidden', atEnd);
-  }
-
-  filterBar.addEventListener('scroll', updateFilterArrows, { passive: true });
-  arrowLeft.addEventListener('click',  () => filterBar.scrollBy({ left: -150, behavior: 'smooth' }));
-  arrowRight.addEventListener('click', () => filterBar.scrollBy({ left:  150, behavior: 'smooth' }));
-  updateFilterArrows();
 
   // Search bar
   const searchInput = document.getElementById('feed-search');
@@ -1203,10 +1198,11 @@ async function loadFeed(opts = {}) {
   const listEl = document.getElementById('feed-list');
   if (!listEl) return;
 
-  const filter     = state.feedFilter;
+  const geo        = state.feedGeo;
+  const cat        = state.feedCat;
+  const timeFilter = state.feedTime;
   const search     = state.feedSearch;
-  const timeFilter = state.feedTimeFilter;
-  const cacheKey   = `${filter}:${search}:${timeFilter}`;
+  const cacheKey   = `${geo}:${cat}:${timeFilter}:${search}`;
   const cached = cache.feed[cacheKey];
 
   // Serve stale cache immediately, refresh in background
@@ -1236,10 +1232,11 @@ async function loadFeed(opts = {}) {
       query = query.or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
     }
 
-    if (filter === 'mon-quartier' && state.profile?.quartier) {
+    if (geo === 'mon-quartier' && state.profile?.quartier) {
       query = query.eq('quartier', state.profile.quartier);
-    } else if (!['all','mon-quartier'].includes(filter)) {
-      query = query.eq('categorie', filter);
+    }
+    if (cat) {
+      query = query.eq('categorie', cat);
     }
     if (search) {
       query = query.ilike('description', `%${search}%`);
