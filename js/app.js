@@ -3206,10 +3206,9 @@ async function submitRating(ratedId, postId, score, comment) {
   };
   if (postId) payload.post_id = postId;
 
-  console.log('[ratings] payload:', JSON.stringify(payload));
-  const { data, error } = await db.from('ratings').insert(payload).select();
-  console.log('[ratings] data:', data, '| error:', error ? JSON.stringify(error) : null);
-  if (error) { console.error('[ratings] code:', error.code, '| message:', error.message, '| details:', error.details, '| hint:', error.hint); return false; }
+  const { error } = await db.from('ratings')
+    .upsert(payload, { onConflict: 'rater_id,rated_id', ignoreDuplicates: false });
+  if (error) { console.error('submitRating:', error.message); return false; }
   insertNotif(ratedId, 'rating',
     `${state.profile?.prenom || 'Un habitant'} a noté votre interaction (${score}/5).`,
     null);
@@ -3229,7 +3228,6 @@ async function checkConvRatingBanner(conv, other) {
     .select('id')
     .eq('rater_id', state.user.id)
     .eq('rated_id', other.id)
-    .eq('post_id', conv.post_id)
     .maybeSingle();
   if (existing) return;
 
