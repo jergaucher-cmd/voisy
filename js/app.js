@@ -1074,25 +1074,17 @@ async function renderFeed() {
             </button>
           </div>
         </div>
-        <div class="filter-panel">
-          <div class="filter-row-label">OÙ</div>
-          <div class="filter-row" id="geo-bar">
+        <div class="feed-geo-bar">
+          <div class="feed-geo-chips" id="geo-bar">
             <button class="geo-chip ${state.feedGeo === 'all' ? 'active' : ''}" data-geo="all">Tout Angers</button>
             <button class="geo-chip ${state.feedGeo === 'mon-quartier' ? 'active' : ''}" data-geo="mon-quartier">📍 Mon quartier</button>
           </div>
-          <div class="filter-row-sep"></div>
-          <div class="filter-row-label">QUAND</div>
-          <div class="filter-row" id="time-bar">
-            <button class="time-chip ${!state.feedTime ? 'active' : ''}" data-time="">Tous</button>
-            <button class="time-chip ${state.feedTime === 'today' ? 'active' : ''}" data-time="today">📅 Aujourd'hui</button>
-            <button class="time-chip ${state.feedTime === 'weekend' ? 'active' : ''}" data-time="weekend">🗓 Ce weekend</button>
-            <button class="time-chip ${state.feedTime === 'week' ? 'active' : ''}" data-time="week">📆 Cette semaine</button>
-          </div>
-          <div class="filter-row-sep"></div>
-          <div class="filter-row-label">QUOI</div>
-          <div class="filter-row" id="cat-bar">
-            ${CATEGORIES.map(c => `<button class="cat-chip ${state.feedCat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${c.icon} ${esc(c.label)}</button>`).join('')}
-          </div>
+          <button class="filter-icon-btn" id="btn-filter-icon" aria-label="Ouvrir les filtres">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            <span class="filter-badge ${(state.feedTime || state.feedCat) ? '' : 'hidden'}" id="filter-badge">${(state.feedTime ? 1 : 0) + (state.feedCat ? 1 : 0) || ''}</span>
+          </button>
         </div>
       </div>
       <div class="feed-list" id="feed-list">
@@ -1111,31 +1103,7 @@ async function renderFeed() {
     loadFeed();
   });
 
-  document.getElementById('time-bar').addEventListener('click', e => {
-    const chip = e.target.closest('.time-chip');
-    if (!chip) return;
-    state.feedTime = chip.dataset.time;
-    document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    cache.feed = {};
-    loadFeed();
-  });
-
-  document.getElementById('cat-bar').addEventListener('click', e => {
-    const chip = e.target.closest('.cat-chip');
-    if (!chip) return;
-    const val = chip.dataset.cat;
-    if (state.feedCat === val) {
-      state.feedCat = '';
-      chip.classList.remove('active');
-    } else {
-      state.feedCat = val;
-      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-    }
-    cache.feed = {};
-    loadFeed();
-  });
+  document.getElementById('btn-filter-icon').addEventListener('click', openFilterSheet);
 
   // Search bar
   const searchInput = document.getElementById('feed-search');
@@ -1163,6 +1131,94 @@ async function renderFeed() {
   refreshNotifCount();
 
   loadFeed();
+}
+
+function updateFilterBadge() {
+  const count = (state.feedTime ? 1 : 0) + (state.feedCat ? 1 : 0);
+  const badge = document.getElementById('filter-badge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function openFilterSheet() {
+  let draftTime = state.feedTime;
+  let draftCat  = state.feedCat;
+
+  const timeOpts = [
+    { val: '',        label: 'Tous' },
+    { val: 'today',   label: '📅 Aujourd\'hui' },
+    { val: 'weekend', label: '🗓 Ce weekend' },
+    { val: 'week',    label: '📆 Cette semaine' },
+  ];
+
+  openModal(`
+    <div class="fs-title">Filtres</div>
+
+    <div class="fs-section">
+      <div class="fs-label">QUAND</div>
+      <div class="fs-chips" id="fs-time-chips">
+        ${timeOpts.map(o => `
+          <button class="fs-time-chip ${draftTime === o.val ? 'active' : ''}" data-time="${esc(o.val)}">${o.label}</button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="fs-section">
+      <div class="fs-label">QUOI</div>
+      <div class="fs-chips" id="fs-cat-chips">
+        ${CATEGORIES.map(c => `
+          <button class="fs-cat-chip ${draftCat === c.id ? 'active' : ''}" data-cat="${esc(c.id)}">${c.icon} ${esc(c.label)}</button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="fs-actions">
+      <button class="btn btn-ghost fs-btn-reset" id="fs-reset">Réinitialiser</button>
+      <button class="btn btn-primary fs-btn-apply" id="fs-apply">Appliquer</button>
+    </div>`);
+
+  document.getElementById('fs-time-chips').addEventListener('click', e => {
+    const chip = e.target.closest('.fs-time-chip');
+    if (!chip) return;
+    draftTime = chip.dataset.time;
+    document.querySelectorAll('.fs-time-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+
+  document.getElementById('fs-cat-chips').addEventListener('click', e => {
+    const chip = e.target.closest('.fs-cat-chip');
+    if (!chip) return;
+    const val = chip.dataset.cat;
+    if (draftCat === val) {
+      draftCat = '';
+      chip.classList.remove('active');
+    } else {
+      draftCat = val;
+      document.querySelectorAll('.fs-cat-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    }
+  });
+
+  document.getElementById('fs-reset').onclick = () => {
+    draftTime = '';
+    draftCat  = '';
+    document.querySelectorAll('.fs-time-chip').forEach(c => c.classList.toggle('active', c.dataset.time === ''));
+    document.querySelectorAll('.fs-cat-chip').forEach(c => c.classList.remove('active'));
+  };
+
+  document.getElementById('fs-apply').onclick = () => {
+    state.feedTime = draftTime;
+    state.feedCat  = draftCat;
+    closeModal();
+    updateFilterBadge();
+    cache.feed = {};
+    loadFeed();
+  };
 }
 
 function getTimeFilterRange(key) {
