@@ -474,6 +474,23 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .filter-chip.active[data-filter="Sorties"]    { background: #9B6FD4; border-color: #9B6FD4; }
 .filter-chip.active[data-filter="Objets"]     { background: #C4A84A; border-color: #C4A84A; }
 .filter-chip.active[data-filter="Événements"] { background: #E24A7A; border-color: #E24A7A; }
+.feed-time-bar {
+  display: flex; gap: 8px; overflow-x: auto;
+  padding: 0 16px 10px; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.feed-time-bar::-webkit-scrollbar { display: none; }
+.time-chip {
+  flex-shrink: 0; padding: 6px 13px;
+  border-radius: var(--radius-sm); font-size: 12px; font-weight: 700;
+  background: var(--white); color: var(--muted);
+  border: 1px solid var(--border-mid);
+  white-space: nowrap; letter-spacing: 0.04em;
+  cursor: pointer; transition: all 0.15s;
+}
+.time-chip:active { transform: scale(0.95); }
+.time-chip.active { background: #6B7A8D; border-color: #6B7A8D; color: #fff; }
+
 .feed-list { padding: 16px 16px 8px; display: flex; flex-direction: column; gap: 10px; }
 
 /* ===== POST CARD ===== */

@@ -77,6 +77,7 @@ const state = {
   view: null,
   feedFilter: 'all',
   feedSearch: '',
+  feedTimeFilter: '',
   realtimeSubscription: null,
   pendingConvParams: null,
   channelsSubscribed: false,
@@ -1085,6 +1086,11 @@ async function renderFeed() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
+        <div class="feed-time-bar" id="time-filter-bar">
+          <button class="time-chip ${state.feedTimeFilter === 'today' ? 'active' : ''}" data-time="today">📅 Aujourd'hui</button>
+          <button class="time-chip ${state.feedTimeFilter === 'weekend' ? 'active' : ''}" data-time="weekend">🗓 Ce weekend</button>
+          <button class="time-chip ${state.feedTimeFilter === 'week' ? 'active' : ''}" data-time="week">📆 Cette semaine</button>
+        </div>
       </div>
       <div class="feed-list" id="feed-list">
         <div class="spinner"></div>
@@ -1098,6 +1104,23 @@ async function renderFeed() {
     state.feedFilter = chip.dataset.filter;
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
+    cache.feed = {};
+    loadFeed();
+  });
+
+  document.getElementById('time-filter-bar').addEventListener('click', e => {
+    const chip = e.target.closest('.time-chip');
+    if (!chip) return;
+    const val = chip.dataset.time;
+    if (state.feedTimeFilter === val) {
+      state.feedTimeFilter = '';
+      chip.classList.remove('active');
+    } else {
+      state.feedTimeFilter = val;
+      document.querySelectorAll('.time-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    }
+    cache.feed = {};
     loadFeed();
   });
 
@@ -1147,13 +1170,43 @@ async function renderFeed() {
   loadFeed();
 }
 
+function getTimeFilterRange(key) {
+  const now = new Date();
+  if (key === 'today') {
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    return { start: now, end };
+  }
+  if (key === 'weekend') {
+    const day = now.getDay(); // 0=Sun … 6=Sat
+    // Start: last/this Friday at 18:00 (or now if we're already past it)
+    const daysToFri = day === 5 ? 0 : day === 6 ? -1 : day === 0 ? -2 : 5 - day;
+    const fri = new Date(now);
+    fri.setDate(fri.getDate() + daysToFri);
+    fri.setHours(18, 0, 0, 0);
+    const start = fri < now ? now : fri;
+    // End: this Sunday at 23:59
+    const daysToSun = day === 0 ? 0 : 7 - day;
+    const end = new Date(now);
+    end.setDate(end.getDate() + daysToSun);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+  if (key === 'week') {
+    const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return { start: now, end };
+  }
+  return null;
+}
+
 async function loadFeed(opts = {}) {
   const listEl = document.getElementById('feed-list');
   if (!listEl) return;
 
-  const filter = state.feedFilter;
-  const search = state.feedSearch;
-  const cacheKey = `${filter}:${search}`;
+  const filter     = state.feedFilter;
+  const search     = state.feedSearch;
+  const timeFilter = state.feedTimeFilter;
+  const cacheKey   = `${filter}:${search}:${timeFilter}`;
   const cached = cache.feed[cacheKey];
 
   // Serve stale cache immediately, refresh in background
@@ -1171,9 +1224,17 @@ async function loadFeed(opts = {}) {
     let query = db.from('posts')
       .select(`*, profiles(id, prenom, quartier, photo_url, show_photo, photo_verified, phone_verified, presence_status)`)
       .eq('is_resolved', false)
-      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .order('created_at', { ascending: false })
       .limit(50);
+
+    const timeRange = timeFilter ? getTimeFilterRange(timeFilter) : null;
+    if (timeRange) {
+      query = query
+        .gte('expires_at', timeRange.start.toISOString())
+        .lte('expires_at', timeRange.end.toISOString());
+    } else {
+      query = query.or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
+    }
 
     if (filter === 'mon-quartier' && state.profile?.quartier) {
       query = query.eq('quartier', state.profile.quartier);
@@ -1196,6 +1257,11 @@ async function loadFeed(opts = {}) {
           <div class="empty-icon">🔍</div>
           <div class="empty-title">Aucun résultat</div>
           <div class="empty-text">Aucun post ne correspond à votre recherche dans ce quartier.</div>
+        </div>` : timeFilter ? `
+        <div class="empty-state">
+          <div class="empty-icon">📅</div>
+          <div class="empty-title">Rien sur cette période</div>
+          <div class="empty-text">Aucune publication ne correspond à cette plage de dates. Essayez une autre période ou supprimez le filtre.</div>
         </div>` : `
         <div class="empty-state">
           <div class="empty-icon">🌱</div>
