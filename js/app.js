@@ -90,6 +90,10 @@ const state = {
 // ===== CACHE (stale-while-revalidate) =====
 const cache = { feed: {}, messages: null, messagesAt: 0 };
 
+// Post lookup map for detail sheet — populated on every renderFeedCards()
+const postCache = {};
+let feedAlertUserIds = new Set();
+
 // Wrap any Supabase promise with a hard timeout
 async function withTimeout(promise, ms = 3000) {
   let id;
@@ -1354,30 +1358,85 @@ async function loadFeed(opts = {}) {
 }
 
 function renderFeedCards(listEl, posts, alertUserIds) {
+  feedAlertUserIds = alertUserIds;
+  posts.forEach(p => postCache[p.id] = p);
   listEl.innerHTML = posts.map(p => postCardHTML(p, alertUserIds)).join('');
   listEl.querySelectorAll('.post-card').forEach((card, i) => {
-    card.style.setProperty('--card-delay', `${Math.min(i * 80, 640)}ms`);
+    card.style.setProperty('--card-delay', `${Math.min(i * 60, 480)}ms`);
     card.classList.add('card-enter');
   });
   listEl.addEventListener('click', handleFeedClick);
 }
 
 function postCardHTML(post, alertUserIds = new Set()) {
-  const profile = post.profiles || {};
-  const initials = getInitial(profile.prenom);
-  const isOwnPost = state.user?.id === post.user_id;
+  const profile    = post.profiles || {};
+  const isEvenement = post.categorie === 'Événements';
   const isUnderReview = alertUserIds.has(post.user_id);
+
+  const typeLabel = isEvenement ? 'Événement'
+    : post.type === 'besoin'  ? 'Besoin'
+    : post.type === 'balade'  ? 'Balade'
+    : 'Offre';
+
+  const desc = post.description || '';
+  const truncDesc = desc.length > 60 ? desc.slice(0, 60) + '…' : desc;
+
+  const energyIcons = { calme: '🌿', sociable: '☀️', tres_sociable: '⚡' };
+  const energyIcon  = profile.energy_type ? (energyIcons[profile.energy_type] || '') : '';
+
+  const dateLine = (isEvenement && post.expires_at)
+    ? `<div class="pc-event-date">📅 ${esc(formatEventDate(post.expires_at))}</div>`
+    : '';
+
+  const isOwn = state.user?.id === post.user_id;
+  const ownDot = isOwn ? `<span class="pc-own-dot" title="Votre publication"></span>` : '';
+
+  return `
+    <article class="post-card" data-post-id="${esc(post.id)}" data-categorie="${esc(post.categorie)}">
+      <div class="pc-top">
+        <span class="pc-type-label">${getCatIcon(post.categorie)} ${typeLabel}</span>
+        <div class="pc-author-row">
+          ${ownDot}
+          <span class="pc-author-name">${esc(profile.prenom || 'Habitant·e')}${isUnderReview ? ' ⚠️' : ''}</span>
+          ${energyIcon ? `<span class="pc-energy-icon">${energyIcon}</span>` : ''}
+        </div>
+      </div>
+      ${dateLine}
+      <div class="pc-desc">${esc(truncDesc)}</div>
+      <div class="pc-footer">
+        <span class="pc-time">${formatRelTime(post.created_at)}</span>
+        <svg class="pc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </article>`;
+}
+
+function handleFeedClick(e) {
+  const card = e.target.closest('.post-card');
+  if (!card) return;
+  openPostDetail(card.dataset.postId);
+}
+
+function openPostDetail(postId) {
+  const post = postCache[postId];
+  if (!post) return;
+
+  const profile = post.profiles || {};
+  const isOwn   = state.user?.id === post.user_id;
+  const isEvenement = post.categorie === 'Événements';
+  const isUnderReview = feedAlertUserIds.has(post.user_id);
+
+  // avatar
+  const showPhoto = isOwn || privacyVisible(profile, 'show_photo');
   let avatarEl;
-  if (profile.photo_url && (isOwnPost || privacyVisible(profile, 'show_photo'))) {
-    avatarEl = `<div class="post-avatar"><img src="${esc(profile.photo_url)}" alt="${esc(profile.prenom)}"></div>`;
-  } else if (profile.photo_url && !privacyVisible(profile, 'show_photo')) {
-    avatarEl = silhouetteAvatarHTML('post-avatar');
+  if (profile.photo_url && showPhoto) {
+    avatarEl = `<div class="pd-avatar"><img src="${esc(profile.photo_url)}" alt="${esc(profile.prenom)}"></div>`;
+  } else if (profile.photo_url) {
+    avatarEl = silhouetteAvatarHTML('pd-avatar');
   } else {
-    avatarEl = `<div class="post-avatar">${esc(initials)}</div>`;
+    avatarEl = `<div class="pd-avatar">${esc(getInitial(profile.prenom))}</div>`;
   }
 
-  const isEvenement = post.categorie === 'Événements';
-
+  // type badge
   const typeBadge = isEvenement
     ? `<span class="post-type-badge evenement"><span class="post-category-icon">🎭</span> Événement du quartier</span>`
     : post.type === 'besoin'
@@ -1386,104 +1445,108 @@ function postCardHTML(post, alertUserIds = new Set()) {
         ? `<span class="post-type-badge balade"><span class="post-category-icon">🐾</span> Je propose une balade</span>`
         : `<span class="post-type-badge offre"><span class="post-category-icon">${getCatIcon(post.categorie)}</span> Je propose…</span>`;
 
-  const helpBtn = isEvenement
-    ? `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">📅 Je participe</button>`
+  // help button
+  const helpBtnHTML = isEvenement
+    ? `<button class="btn-help offre" id="pd-help">📅 Je participe</button>`
     : post.type === 'besoin'
-      ? `<button class="btn-help" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">🤝 Je peux aider</button>`
+      ? `<button class="btn-help" id="pd-help">🤝 Je peux aider</button>`
       : post.type === 'balade'
-        ? `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">🐾 Je participe</button>`
-        : `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">✋ Je suis intéressé·e</button>`;
+        ? `<button class="btn-help offre" id="pd-help">🐾 Je participe</button>`
+        : `<button class="btn-help offre" id="pd-help">✋ Je suis intéressé·e</button>`;
 
+  // event date / expiry
   const eventDateRow = (isEvenement && post.expires_at)
-    ? `<div class="post-event-date">📅 ${esc(formatEventDate(post.expires_at))}</div>`
-    : '';
-
+    ? `<div class="post-event-date">📅 ${esc(formatEventDate(post.expires_at))}</div>` : '';
   const expiryPill = (!isEvenement && post.expires_at)
-    ? `<div class="post-expiry-pill">⏳ Expire le ${esc(formatEventDate(post.expires_at))}</div>`
-    : '';
+    ? `<div class="post-expiry-pill">⏳ Expire le ${esc(formatEventDate(post.expires_at))}</div>` : '';
 
-  const isOwn = state.user?.id === post.user_id;
-
-  let renewBanner = '';
+  // renew banner
+  let renewBannerHTML = '';
   if (isOwn && post.expires_at) {
-    const msLeft = new Date(post.expires_at) - new Date();
-    const daysLeft = Math.ceil(msLeft / 86400000);
+    const daysLeft = Math.ceil((new Date(post.expires_at) - new Date()) / 86400000);
     if (daysLeft <= 3 && daysLeft > 0) {
-      renewBanner = `<div class="post-renew-banner">
-        ⏳ Expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''} —
-        <button class="post-renew-btn" data-action="renew" data-post-id="${esc(post.id)}">Renouveler</button>
-      </div>`;
+      renewBannerHTML = `<div class="post-renew-banner">⏳ Expire dans ${daysLeft} jour${daysLeft > 1 ? 's' : ''} — <button class="post-renew-btn" id="pd-renew">Renouveler</button></div>`;
     }
   }
 
-  return `
-    <article class="post-card" data-post-id="${esc(post.id)}" data-categorie="${esc(post.categorie)}">
-      <div class="post-card-header">
-        <button data-action="profile" data-user-id="${esc(post.user_id)}" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:12px;flex:1;min-width:0;padding:0">
-          ${avatarEl}
-          <div class="post-meta">
-            <div class="post-author">
-              ${esc(profile.prenom || 'Habitant·e')}
-              ${(profile.photo_verified || profile.phone_verified) ? `<span class="v-badges-mini">
-                ${profile.photo_verified ? '<span class="v-badge-mini" title="Photo vérifiée">📷</span>' : ''}
-                ${profile.phone_verified ? '<span class="v-badge-mini" title="Numéro vérifié">📱</span>' : ''}
-              </span>` : ''}
-              ${isUnderReview ? '<span class="post-review-badge" title="Ce profil fait l\'objet d\'un examen">⚠️</span>' : ''}
-            </div>
-            <div class="post-location">📍 ${esc(profile.quartier || '')}${profile.presence_status ? `<span class="post-presence">${presenceLabel(profile.presence_status)}</span>` : ''}</div>
-          </div>
-        </button>
-        <div class="post-time">${formatRelTime(post.created_at)}</div>
+  // full date
+  const d = new Date(post.created_at);
+  const fullDate = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+    + ' · ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  // energy + verification badges
+  const energyBadge = profile.energy_type
+    ? `<div class="profile-energy-badge energy-${esc(profile.energy_type)}" style="font-size:11px;padding:3px 10px;margin-top:4px;display:inline-flex">${energyLabel(profile.energy_type)}</div>`
+    : '';
+  const vBadges = (profile.photo_verified || profile.phone_verified)
+    ? `<span style="font-size:11px;margin-left:4px">${profile.photo_verified ? '📷' : ''}${profile.phone_verified ? '📱' : ''}</span>`
+    : '';
+
+  openModal(`
+    <button class="pd-author-btn" id="pd-author">
+      ${avatarEl}
+      <div class="pd-author-info">
+        <div class="pd-author-name">${esc(profile.prenom || 'Habitant·e')}${vBadges}${isUnderReview ? ' ⚠️' : ''}</div>
+        <div class="pd-author-sub">📍 ${esc(profile.quartier || '')}${profile.presence_status ? ` · ${presenceLabel(profile.presence_status)}` : ''}</div>
+        ${energyBadge}
       </div>
-      ${typeBadge}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted)"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+
+    <div class="pd-body">
+      <div class="pd-type-row">${typeBadge}</div>
       ${eventDateRow}
-      <div class="post-description">${esc(post.description)}</div>
+      <div class="pd-description">${esc(post.description)}</div>
       ${expiryPill}
-      ${renewBanner}
-      <div class="post-card-footer">
-        ${isOwn
-          ? `<button class="btn btn-ghost btn-sm" style="flex:1" data-action="resolve" data-post-id="${esc(post.id)}">✓ Marquer résolu</button>`
-          : helpBtn
-        }
-        <button class="btn-report" data-action="report" data-type="post" data-target-id="${esc(post.id)}" aria-label="Signaler">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
-          </svg>
-        </button>
-      </div>
-    </article>`;
-}
+      ${renewBannerHTML}
+      <div class="pd-date-full">${fullDate}</div>
+    </div>
 
-async function handleFeedClick(e) {
-  const action = e.target.closest('[data-action]')?.dataset?.action;
-  if (!action) return;
-  const el = e.target.closest('[data-action]');
+    <div class="pd-actions">
+      ${isOwn
+        ? `<button class="btn btn-ghost" id="pd-resolve" style="flex:1">✓ Marquer résolu</button>`
+        : helpBtnHTML
+      }
+      <button class="pd-report-btn" id="pd-report" aria-label="Signaler">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+        </svg>
+      </button>
+    </div>`);
 
-  if (action === 'help') {
-    const postId  = el.dataset.postId;
-    const ownerId = el.dataset.ownerId;
-    if (ownerId === state.user?.id) { showToast('C\'est votre propre publication !', 'info'); return; }
-    startOrOpenConversation(postId, ownerId);
+  document.getElementById('pd-author').onclick = () => {
+    closeModal();
+    navigate('profile', { userId: profile.id || post.user_id });
+  };
+
+  const helpEl = document.getElementById('pd-help');
+  if (helpEl) {
+    helpEl.onclick = () => {
+      if (post.user_id === state.user?.id) { showToast('C\'est votre propre publication !', 'info'); return; }
+      closeModal();
+      startOrOpenConversation(post.id, post.user_id);
+    };
   }
-  if (action === 'report') {
-    showReportModal(el.dataset.type, el.dataset.targetId);
+
+  const resolveEl = document.getElementById('pd-resolve');
+  if (resolveEl) resolveEl.onclick = () => { closeModal(); resolvePost(post.id); };
+
+  const renewEl = document.getElementById('pd-renew');
+  if (renewEl) {
+    renewEl.onclick = async () => {
+      const newExpiry = new Date();
+      newExpiry.setDate(newExpiry.getDate() + 14);
+      await db.from('posts').update({ expires_at: newExpiry.toISOString() }).eq('id', post.id).eq('user_id', state.user.id);
+      closeModal();
+      showToast('Publication renouvelée pour 14 jours !');
+      loadFeed();
+    };
   }
-  if (action === 'profile') {
-    navigate('profile', { userId: el.dataset.userId });
-  }
-  if (action === 'resolve') {
-    resolvePost(el.dataset.postId);
-  }
-  if (action === 'renew') {
-    const newExpiry = new Date();
-    newExpiry.setDate(newExpiry.getDate() + 14);
-    await db.from('posts')
-      .update({ expires_at: newExpiry.toISOString() })
-      .eq('id', el.dataset.postId)
-      .eq('user_id', state.user.id);
-    showToast('Publication renouvelée pour 14 jours !');
-    loadFeed();
-  }
+
+  document.getElementById('pd-report').onclick = () => {
+    closeModal();
+    showReportModal('post', post.id);
+  };
 }
 
 async function resolvePost(postId) {
