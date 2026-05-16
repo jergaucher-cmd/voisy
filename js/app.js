@@ -2763,21 +2763,22 @@ async function handleLogout() {
 }
 
 function showAppReviewModal() {
+  console.log('[showAppReviewModal] → table: app_reviews');
   let selectedScore = 0;
 
   openModal(`
     <div class="rating-title">Noter Voisy</div>
-    <div class="rating-stars" id="rating-stars" role="group" aria-label="Note sur 5">
+    <div class="rating-stars" id="ar-stars" role="group" aria-label="Note sur 5">
       ${[1, 2, 3, 4, 5].map(i => `<button class="star-btn" data-score="${i}" aria-label="${i} étoile${i > 1 ? 's' : ''}">★</button>`).join('')}
     </div>
-    <textarea class="form-input rating-comment" id="rating-comment"
+    <textarea class="form-input rating-comment" id="ar-comment"
       placeholder="Votre avis en quelques mots…" maxlength="300"></textarea>
-    <div class="char-count" id="rating-char" style="margin-bottom:16px">0 / 300</div>
-    <div id="rating-error" class="form-error" style="margin-bottom:8px"></div>
-    <button class="btn btn-primary" id="btn-rating-send">Envoyer</button>
+    <div class="char-count" id="ar-char" style="margin-bottom:16px">0 / 300</div>
+    <div id="ar-error" class="form-error" style="margin-bottom:8px"></div>
+    <button class="btn btn-primary" id="ar-send">Envoyer</button>
     <button class="btn btn-ghost" onclick="closeModal()" style="margin-top:8px">Plus tard</button>`);
 
-  const starsEl = document.getElementById('rating-stars');
+  const starsEl = document.getElementById('ar-stars');
   const stars   = starsEl.querySelectorAll('.star-btn');
 
   starsEl.addEventListener('click', e => {
@@ -2787,16 +2788,16 @@ function showAppReviewModal() {
     stars.forEach((s, i) => s.classList.toggle('active', i < selectedScore));
   });
 
-  document.getElementById('rating-comment').addEventListener('input', e => {
-    document.getElementById('rating-char').textContent = `${e.target.value.length} / 300`;
+  document.getElementById('ar-comment').addEventListener('input', e => {
+    document.getElementById('ar-char').textContent = `${e.target.value.length} / 300`;
   });
 
-  document.getElementById('btn-rating-send').onclick = async () => {
-    const comment = document.getElementById('rating-comment').value.trim();
-    const errEl   = document.getElementById('rating-error');
+  document.getElementById('ar-send').onclick = async () => {
+    const comment = document.getElementById('ar-comment').value.trim();
+    const errEl   = document.getElementById('ar-error');
     if (!selectedScore) { errEl.textContent = 'Choisissez une note.'; return; }
 
-    const btn = document.getElementById('btn-rating-send');
+    const btn = document.getElementById('ar-send');
     showLoading(btn, true);
 
     const { error } = await db.from('app_reviews').upsert(
@@ -3138,33 +3139,34 @@ async function submitReport(type, targetId, reason) {
 
 // ===== RATING =====
 function showRatingModal(ratedId, ratedName, postId) {
+  console.log('[showRatingModal] → table: ratings | ratedId:', ratedId, '| postId:', postId);
   let selectedScore = 0;
   const SCORE_LABELS = ['', 'Très mauvaise expérience', 'Mauvaise expérience', 'Expérience correcte', 'Bonne expérience', 'Excellente expérience'];
 
   openModal(`
     <div class="modal-title">⭐ Noter l'interaction</div>
     <p class="rating-subtitle">Comment s'est passée votre rencontre avec <strong>${esc(ratedName)}</strong> ?</p>
-    <div class="stars-wrap" id="modal-stars">
+    <div class="stars-wrap" id="ur-stars">
       ${[1,2,3,4,5].map(i => `<button class="star-btn" data-score="${i}" type="button">★</button>`).join('')}
     </div>
-    <div class="rating-score-label" id="rating-score-label"></div>
-    <div id="rating-comment-wrap" style="display:none">
+    <div class="rating-score-label" id="ur-score-label"></div>
+    <div id="ur-comment-wrap" style="display:none">
       <label class="form-label" style="margin-top:16px">Que s'est-il passé ? <span style="color:var(--terracotta)">*</span></label>
-      <textarea class="form-input" id="rating-comment" placeholder="Décrivez brièvement ce qui s'est passé… (min. 20 caractères)" maxlength="500" style="min-height:80px;margin-top:8px"></textarea>
-      <div class="char-count" id="rating-char-count">0 / 500</div>
+      <textarea class="form-input" id="ur-comment" placeholder="Décrivez brièvement ce qui s'est passé… (min. 20 caractères)" maxlength="500" style="min-height:80px;margin-top:8px"></textarea>
+      <div class="char-count" id="ur-char-count">0 / 500</div>
     </div>
-    <div id="rating-error" class="form-error" style="margin-top:8px"></div>
-    <button class="btn btn-primary" id="btn-submit-rating" style="margin-top:16px" disabled>Envoyer ma note</button>
+    <div id="ur-error" class="form-error" style="margin-top:8px"></div>
+    <button class="btn btn-primary" id="ur-submit" style="margin-top:16px" disabled>Envoyer ma note</button>
     <button class="btn btn-ghost" onclick="closeModal()" style="margin-top:8px">Plus tard</button>
   `);
 
-  const starsEl      = document.getElementById('modal-stars');
-  const commentWrap  = document.getElementById('rating-comment-wrap');
-  const commentInput = document.getElementById('rating-comment');
-  const charCount    = document.getElementById('rating-char-count');
-  const scoreLabelEl = document.getElementById('rating-score-label');
-  const submitBtn    = document.getElementById('btn-submit-rating');
-  const errEl        = document.getElementById('rating-error');
+  const starsEl      = document.getElementById('ur-stars');
+  const commentWrap  = document.getElementById('ur-comment-wrap');
+  const commentInput = document.getElementById('ur-comment');
+  const charCount    = document.getElementById('ur-char-count');
+  const scoreLabelEl = document.getElementById('ur-score-label');
+  const submitBtn    = document.getElementById('ur-submit');
+  const errEl        = document.getElementById('ur-error');
 
   starsEl.addEventListener('click', e => {
     const btn = e.target.closest('.star-btn');
@@ -3206,23 +3208,13 @@ async function submitRating(ratedId, postId, score, comment) {
   };
   if (postId) payload.post_id = postId;
 
-  console.table({
-    rater_id: payload.rater_id,
-    rated_id: payload.rated_id,
-    post_id:  payload.post_id ?? '(absent)',
-    score:    payload.score,
-    comment:  payload.comment ?? '(null)',
-    status:   payload.status,
-  });
+  console.log('[submitRating] → table: ratings | payload:', JSON.stringify(payload));
 
-  const { data, error } = await db.from('ratings')
-    .upsert(payload, { onConflict: 'rater_id,rated_id', ignoreDuplicates: false })
-    .select();
+  const { error } = await db.from('ratings')
+    .upsert(payload, { onConflict: 'rater_id,rated_id', ignoreDuplicates: false });
 
-  console.log('▶ data retourné :', data);
-  console.log('▶ error complet  :', error);
   if (error) {
-    console.error('CODE:', error.code, '| MESSAGE:', error.message, '| DETAILS:', error.details, '| HINT:', error.hint);
+    console.error('[submitRating] ERREUR:', error.code, error.message, error.details, error.hint);
     return false;
   }
   insertNotif(ratedId, 'rating',
