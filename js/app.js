@@ -2144,9 +2144,13 @@ async function sendMessage(convId) {
 
   if (error) { showToast('Erreur d\'envoi.', 'error'); return; }
   if (state.currentConvOtherId && state.currentConvOtherId !== state.user?.id) {
+    const senderName = state.profile?.prenom || 'Un habitant';
     insertNotif(state.currentConvOtherId, 'message',
-      `${state.profile?.prenom || 'Un habitant'} vous a envoyé un message.`,
+      `${senderName} vous a envoyé un message.`,
       `conversation:${convId}`);
+    db.functions.invoke('send-message-email', {
+      body: { conversation_id: convId, recipient_id: state.currentConvOtherId, sender_name: senderName },
+    }).catch(() => {});
   }
   await loadMessages(convId);
 }
@@ -2502,6 +2506,23 @@ async function renderProfile(userId) {
           </label>
         </div>
       </div>
+
+      <div class="privacy-subheader-row">Notifications</div>
+      <div class="privacy-row">
+        <div class="privacy-row-left">
+          <span class="privacy-row-label">Messages par email</span>
+          <span class="privacy-row-desc">Recevoir un email à chaque nouveau message</span>
+        </div>
+        <div class="toggle-wrap">
+          <span class="toggle-status ${profile.email_notifications !== false ? 'on' : ''}" id="status-email_notifications">
+            ${profile.email_notifications !== false ? 'Activé' : 'Désactivé'}
+          </span>
+          <label class="toggle">
+            <input type="checkbox" class="privacy-toggle" data-field="email_notifications" ${profile.email_notifications !== false ? 'checked' : ''}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
     </div>` : '';
 
   $app.innerHTML = `
@@ -2627,16 +2648,21 @@ async function renderProfile(userId) {
 
         if (statusEl) {
           const labels = {
-            show_photo: ['Visible', 'Masquée'],
-            show_age:   ['Visible', 'Masqué'],
-            show_gender:['Visible', 'Masqué'],
-            show_bio:   ['Visible', 'Masquée'],
+            show_photo:          ['Visible', 'Masquée'],
+            show_age:            ['Visible', 'Masqué'],
+            show_gender:         ['Visible', 'Masqué'],
+            show_bio:            ['Visible', 'Masquée'],
+            email_notifications: ['Activé', 'Désactivé'],
           };
           const [on, off] = labels[field] || ['Visible', 'Masqué'];
           statusEl.textContent = value ? on : off;
           statusEl.classList.toggle('on', value);
         }
-        showToast(value ? 'Information visible par tous' : 'Information masquée', 'info');
+        if (field === 'email_notifications') {
+          showToast(value ? 'Notifications email activées' : 'Notifications email désactivées', 'info');
+        } else {
+          showToast(value ? 'Information visible par tous' : 'Information masquée', 'info');
+        }
       });
     });
   }

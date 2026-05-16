@@ -1164,6 +1164,13 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .privacy-row-label { font-size: 14px; font-weight: 700; color: var(--ink); }
 .privacy-row-desc { font-size: 12px; color: var(--muted); font-weight: 500; }
 .privacy-row-fixed { font-size: 10px; color: rgba(13,43,30,0.3); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.privacy-subheader-row {
+  padding: 9px 16px 8px;
+  font-size: 10px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  background: var(--bg); border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
 
 /* Toggle switch */
 .toggle-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
