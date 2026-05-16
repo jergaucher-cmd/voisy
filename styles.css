@@ -1339,6 +1339,46 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 /* Badge ⚠️ dans le feed (inline, discret) */
 .post-review-badge { font-size: 12px; margin-left: 4px; vertical-align: middle; }
 
+/* ===== NOTE VOISY ===== */
+.rate-voisy-section {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 20px 20px 4px;
+}
+.btn-rate-voisy {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 11px 24px; border-radius: var(--radius-sm);
+  background: var(--white); border: 1.5px solid var(--border-mid);
+  font-size: 14px; font-weight: 700; color: var(--ink);
+  cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.btn-rate-voisy:active { border-color: var(--green); color: var(--green); }
+.rate-voisy-hint {
+  font-size: 12px; color: var(--muted); font-weight: 500; margin-top: 8px;
+}
+
+/* Rating bottom sheet */
+.rating-title {
+  font-size: 18px; font-weight: 800; color: var(--ink);
+  text-align: center; margin-bottom: 24px; letter-spacing: -0.3px;
+}
+.rating-stars {
+  display: flex; justify-content: center; gap: 4px; margin-bottom: 20px;
+}
+.rating-stars .star-btn { font-size: 40px; padding: 2px 4px; }
+.rating-comment { min-height: 90px; resize: none; }
+
+/* Success state */
+.rating-success { text-align: center; padding: 8px 0 4px; }
+.rating-success-icon { font-size: 52px; margin-bottom: 14px; line-height: 1; }
+.rating-success-title {
+  font-size: 20px; font-weight: 800; color: var(--ink);
+  margin-bottom: 10px; letter-spacing: -0.3px;
+}
+.rating-success-text {
+  font-size: 14px; color: var(--muted); font-weight: 500;
+  margin-bottom: 24px; line-height: 1.6;
+}
+
 /* ===== RESPONSIVE ===== */
 /* ===== ANIMATIONS ===== */
 

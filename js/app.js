@@ -2627,6 +2627,11 @@ async function renderProfile(userId) {
         </div>` : ''}
 
       ${isOwn ? `
+        <div class="rate-voisy-section">
+          <button class="btn-rate-voisy" id="btn-rate-voisy">⭐ Noter Voisy</button>
+          <p class="rate-voisy-hint">Votre avis nous aide à améliorer l'app</p>
+        </div>
+
         <div class="profile-section">
           <button class="btn btn-ghost" id="btn-logout" style="color:var(--text-muted)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -2651,6 +2656,7 @@ async function renderProfile(userId) {
   if (isOwn) {
     document.getElementById('btn-edit-profile').onclick = () => navigate('edit-profile');
     document.getElementById('btn-logout').onclick = handleLogout;
+    document.getElementById('btn-rate-voisy').onclick = showRatingModal;
     const uploadInput = document.getElementById('avatar-upload');
     if (uploadInput) uploadInput.onchange = handleAvatarUpload;
 
@@ -2717,6 +2723,64 @@ async function handleLogout() {
   state.profile = null;
   if (state.realtimeSubscription) state.realtimeSubscription.unsubscribe();
   navigate('login');
+}
+
+function showRatingModal() {
+  let selectedScore = 0;
+
+  openModal(`
+    <div class="rating-title">Noter Voisy</div>
+    <div class="rating-stars" id="rating-stars" role="group" aria-label="Note sur 5">
+      ${[1, 2, 3, 4, 5].map(i => `<button class="star-btn" data-score="${i}" aria-label="${i} étoile${i > 1 ? 's' : ''}">★</button>`).join('')}
+    </div>
+    <textarea class="form-input rating-comment" id="rating-comment"
+      placeholder="Votre avis en quelques mots…" maxlength="300"></textarea>
+    <div class="char-count" id="rating-char" style="margin-bottom:16px">0 / 300</div>
+    <div id="rating-error" class="form-error" style="margin-bottom:8px"></div>
+    <button class="btn btn-primary" id="btn-rating-send">Envoyer</button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="margin-top:8px">Plus tard</button>`);
+
+  const starsEl = document.getElementById('rating-stars');
+  const stars   = starsEl.querySelectorAll('.star-btn');
+
+  starsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.star-btn');
+    if (!btn) return;
+    selectedScore = parseInt(btn.dataset.score);
+    stars.forEach((s, i) => s.classList.toggle('active', i < selectedScore));
+  });
+
+  document.getElementById('rating-comment').addEventListener('input', e => {
+    document.getElementById('rating-char').textContent = `${e.target.value.length} / 300`;
+  });
+
+  document.getElementById('btn-rating-send').onclick = async () => {
+    const comment = document.getElementById('rating-comment').value.trim();
+    const errEl   = document.getElementById('rating-error');
+    if (!selectedScore) { errEl.textContent = 'Choisissez une note.'; return; }
+
+    const btn = document.getElementById('btn-rating-send');
+    showLoading(btn, true);
+
+    const { error } = await db.from('app_reviews').upsert(
+      { user_id: state.user.id, score: selectedScore, comment: comment || null },
+      { onConflict: 'user_id' }
+    );
+
+    showLoading(btn, false);
+    if (error) { errEl.textContent = 'Erreur lors de l\'envoi. Réessayez.'; return; }
+
+    const sheet = document.querySelector('.modal-sheet');
+    if (sheet) {
+      sheet.innerHTML = `
+        <div class="rating-success">
+          <div class="rating-success-icon">🌱</div>
+          <div class="rating-success-title">Merci pour votre avis !</div>
+          <p class="rating-success-text">Il nous aide à faire grandir Voisy 🌱</p>
+          <button class="btn btn-primary" onclick="closeModal()">Fermer</button>
+        </div>`;
+    }
+  };
 }
 
 function showDeleteAccountModal() {
