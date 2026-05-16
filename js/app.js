@@ -1011,8 +1011,8 @@ function renderWelcome() {
         <div class="welcome-step">
           <div class="welcome-step-num">1</div>
           <div class="welcome-step-body">
-            <div class="welcome-step-title">Poste un besoin ou une offre</div>
-            <div class="welcome-step-desc">Aide ou fais-toi aider par les gens de ton quartier.</div>
+            <div class="welcome-step-title">Exprime-toi</div>
+            <div class="welcome-step-desc">Un coup de main, une sortie, un événement, un objet à donner... Tout commence ici.</div>
           </div>
         </div>
         <div class="welcome-step">
