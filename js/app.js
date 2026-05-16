@@ -187,6 +187,7 @@ function navigate(view, params = {}) {
     case 'forgot-password': renderForgotPassword(); break;
     case 'welcome':         renderWelcome(); break;
     case 'notifications':   renderNotifications(); break;
+    case 'admin':           renderAdmin(); break;
     default:                renderFeed();
   }
 
@@ -2653,6 +2654,14 @@ async function renderProfile(userId) {
             </div>`).join('')}
         </div>` : ''}
 
+      ${isOwn && state.user?.email === 'jer.gaucher@gmail.com' ? `
+        <div class="admin-entry-section">
+          <button class="btn-admin-entry" onclick="navigate('admin')">
+            ⚙️ Admin
+            <span class="admin-badge-count" id="admin-badge" style="display:none"></span>
+          </button>
+        </div>` : ''}
+
       ${isOwn ? `
         <div class="rate-voisy-section">
           <button class="btn-rate-voisy" id="btn-rate-voisy">⭐ Noter Voisy</button>
@@ -2684,6 +2693,7 @@ async function renderProfile(userId) {
     document.getElementById('btn-edit-profile').onclick = () => navigate('edit-profile');
     document.getElementById('btn-logout').onclick = handleLogout;
     document.getElementById('btn-rate-voisy').onclick = showRatingModal;
+    if (state.user?.email === 'jer.gaucher@gmail.com') loadAdminBadge();
     const uploadInput = document.getElementById('avatar-upload');
     if (uploadInput) uploadInput.onchange = handleAvatarUpload;
 
@@ -2923,7 +2933,7 @@ async function renderEditProfile() {
             Demander la vérification de ma photo
           </button>
           <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4">
-            Un modérateur examinera votre photo de profil et activera le badge.
+            Notre équipe vérifiera votre photo sous 24h. Vous recevrez un email de confirmation.
           </p>` : ''}
         <div class="verify-status ${p?.phone_verified ? 'ok' : 'nok'}" style="margin-top:12px">
           ${p?.phone_verified
@@ -2931,8 +2941,11 @@ async function renderEditProfile() {
             : '📱 Numéro non vérifié'}
         </div>
         ${!p?.phone_verified ? `
-          <p style="font-size:12px;color:var(--text-muted);margin-top:6px;line-height:1.4">
-            Renseignez votre numéro ci-dessus — la vérification sera activée par un modérateur.
+          <button class="btn btn-outline btn-sm" id="btn-req-phone" style="margin-top:8px">
+            Vérifier mon numéro
+          </button>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4">
+            Enregistrez d'abord votre numéro ci-dessus, puis cliquez pour soumettre la demande.
           </p>` : ''}
       </div>
 
@@ -2974,7 +2987,7 @@ async function renderEditProfile() {
 
   document.getElementById('edit-avatar-upload').onchange = handleAvatarUpload;
 
-  // Verification request button
+  // Photo verification request
   const btnReqPhoto = document.getElementById('btn-req-photo');
   if (btnReqPhoto) {
     btnReqPhoto.onclick = async () => {
@@ -2994,6 +3007,55 @@ async function renderEditProfile() {
       btnReqPhoto.disabled = true;
       btnReqPhoto.textContent = '✓ Demande envoyée';
       showToast('Demande de vérification photo envoyée !');
+      db.functions.invoke('send-admin-notification', {
+        body: {
+          type: 'photo',
+          user_id:   state.user.id,
+          prenom:    state.profile?.prenom,
+          last_name: state.profile?.last_name,
+          email:     state.user.email,
+        },
+      }).catch(() => {});
+    };
+  }
+
+  // Phone verification request
+  const btnReqPhone = document.getElementById('btn-req-phone');
+  if (btnReqPhone) {
+    btnReqPhone.onclick = async () => {
+      const phoneVal = document.getElementById('edit-phone').value.trim();
+      if (!phoneVal) {
+        showToast('Renseignez d\'abord votre numéro de téléphone ci-dessus.', 'info');
+        return;
+      }
+      showLoading(btnReqPhone, true);
+      const { data: existing } = await db.from('verification_requests')
+        .select('id').eq('user_id', state.user.id)
+        .eq('type', 'phone').eq('status', 'pending').maybeSingle();
+      if (existing) {
+        showLoading(btnReqPhone, false);
+        showToast('Une demande est déjà en cours de traitement.', 'info');
+        return;
+      }
+      await db.from('profiles').update({ phone: phoneVal }).eq('id', state.user.id);
+      const { error } = await db.from('verification_requests')
+        .insert({ user_id: state.user.id, type: 'phone', status: 'pending' });
+      showLoading(btnReqPhone, false);
+      if (error) { showToast('Erreur lors de la demande.', 'error'); return; }
+      btnReqPhone.disabled = true;
+      btnReqPhone.textContent = '✓ Demande envoyée';
+      const hint = btnReqPhone.nextElementSibling;
+      if (hint) hint.textContent = 'Votre numéro a été enregistré. Notre équipe vous contactera pour confirmer votre identité sous 24h.';
+      db.functions.invoke('send-admin-notification', {
+        body: {
+          type: 'phone',
+          user_id:   state.user.id,
+          prenom:    state.profile?.prenom,
+          last_name: state.profile?.last_name,
+          email:     state.user.email,
+          phone:     phoneVal,
+        },
+      }).catch(() => {});
     };
   }
 
@@ -3318,6 +3380,206 @@ async function init() {
       navigate('landing');
     }
   });
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+
+async function loadAdminBadge() {
+  const badgeEl = document.getElementById('admin-badge');
+  if (!badgeEl) return;
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+  const [r1, r2, r3] = await Promise.all([
+    db.from('reports').select('id', { count: 'exact', head: true }).eq('resolved', false),
+    db.from('admin_alerts').select('id', { count: 'exact', head: true }).eq('resolved', false),
+    db.from('verification_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+  ]);
+  const total = (r1.count || 0) + (r2.count || 0) + (r3.count || 0);
+  if (total > 0) {
+    badgeEl.textContent = total;
+    badgeEl.style.display = 'inline-flex';
+  }
+}
+
+async function renderAdmin() {
+  if (state.user?.email !== 'jer.gaucher@gmail.com') { navigate('feed'); return; }
+
+  $app.innerHTML = `
+    <div class="page-container">
+      <div class="admin-header">
+        <button class="admin-back-btn" onclick="navigate('profile')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h1 class="admin-title">Administration</h1>
+      </div>
+      <div id="admin-content" style="padding-bottom:40px">
+        <div style="padding:40px;text-align:center;color:var(--text-muted)">Chargement…</div>
+      </div>
+    </div>`;
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+  const [reportsRes, alertsRes, verifsRes, newProfilesRes] = await Promise.all([
+    db.from('reports')
+      .select('id, target_type, target_id, reason, created_at, reporter:reporter_id(prenom)')
+      .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
+    db.from('admin_alerts')
+      .select('id, created_at, rating:rating_id(score, comment, rater:rater_id(prenom), rated:rated_id(id, prenom))')
+      .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
+    db.from('verification_requests')
+      .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
+      .eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
+    db.from('profiles')
+      .select('id, prenom, quartier, presence_status, created_at, photo_url')
+      .gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }).limit(50),
+  ]);
+
+  const reports     = reportsRes.data || [];
+  const alerts      = alertsRes.data || [];
+  const verifs      = verifsRes.data || [];
+  const newProfiles = newProfilesRes.data || [];
+
+  const el = document.getElementById('admin-content');
+  if (!el) return;
+
+  el.innerHTML = `
+    ${adminSectionHTML('🚨', 'Signalements', reports.length,
+      reports.length === 0
+        ? '<div class="admin-empty">Aucun signalement en attente</div>'
+        : reports.map(r => `
+          <div class="admin-row" id="adminrow-${r.id}">
+            <div class="admin-row-body">
+              <div class="admin-row-tags">
+                <span class="admin-tag ${r.target_type === 'post' ? 'tag-post' : 'tag-profile'}">${r.target_type === 'post' ? 'Post' : 'Profil'}</span>
+              </div>
+              <div class="admin-row-reason">${esc(r.reason)}</div>
+              <div class="admin-row-meta">Par ${esc(r.reporter?.prenom || '?')} · ${formatRelTime(r.created_at)}</div>
+            </div>
+            <div class="admin-row-actions">
+              ${r.target_type === 'post' ? `
+                <button class="admin-btn admin-btn-danger" onclick="adminDeletePost('${r.target_id}','${r.id}')">Supprimer</button>` : ''}
+              <button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${r.target_id}'})">Voir</button>
+              <button class="admin-btn admin-btn-muted" onclick="adminIgnoreReport('${r.id}')">Ignorer</button>
+            </div>
+          </div>`).join('')
+    )}
+
+    ${adminSectionHTML('⭐', 'Notes problématiques', alerts.length,
+      alerts.length === 0
+        ? '<div class="admin-empty">Aucune alerte en attente</div>'
+        : alerts.map(a => {
+            const r = a.rating || {};
+            return `
+              <div class="admin-row" id="adminrow-${a.id}">
+                <div class="admin-row-body">
+                  <div class="admin-row-tags">
+                    <span class="admin-tag tag-rating">${'★'.repeat(r.score || 0)}${'☆'.repeat(5 - (r.score || 0))} ${r.score || '?'}/5</span>
+                    <span class="admin-tag tag-profile">${esc(r.rater?.prenom || '?')} → ${esc(r.rated?.prenom || '?')}</span>
+                  </div>
+                  ${r.comment ? `<div class="admin-row-reason">${esc(r.comment)}</div>` : '<div class="admin-row-meta admin-no-comment">Sans commentaire</div>'}
+                  <div class="admin-row-meta">${formatRelTime(a.created_at)}</div>
+                </div>
+                <div class="admin-row-actions">
+                  ${r.rated?.id ? `<button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${r.rated.id}'})">Voir profil</button>` : ''}
+                  <button class="admin-btn admin-btn-muted" onclick="adminResolveAlert('${a.id}')">Ignorer</button>
+                </div>
+              </div>`;
+          }).join('')
+    )}
+
+    ${adminSectionHTML('📋', 'Demandes de vérification', verifs.length,
+      verifs.length === 0
+        ? '<div class="admin-empty">Aucune demande en attente</div>'
+        : verifs.map(v => {
+            const p = v.profile || {};
+            return `
+              <div class="admin-row" id="adminrow-${v.id}">
+                <div class="admin-row-body">
+                  <div class="admin-row-tags">
+                    <span class="admin-tag ${v.type === 'photo' ? 'tag-photo' : 'tag-phone'}">${v.type === 'photo' ? '📷 Photo' : '📱 Téléphone'}</span>
+                  </div>
+                  <div class="admin-row-name">${esc(p.prenom || '?')}</div>
+                  ${v.type === 'photo' && p.photo_url ? `<img src="${esc(p.photo_url)}" class="admin-verif-photo" onclick="window.open('${esc(p.photo_url)}')">` : ''}
+                  ${v.type === 'phone' && p.phone ? `<div class="admin-row-meta">${esc(p.phone)}</div>` : ''}
+                  <div class="admin-row-meta">${formatRelTime(v.created_at)}</div>
+                </div>
+                <div class="admin-row-actions">
+                  ${p.id ? `<button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${p.id}'})">Voir</button>` : ''}
+                  <button class="admin-btn admin-btn-success" onclick="adminValidateVerif('${v.id}','${v.type}','${p.id || ''}')">✓ Valider</button>
+                  <button class="admin-btn admin-btn-muted" onclick="adminRejectVerif('${v.id}')">✗ Rejeter</button>
+                </div>
+              </div>`;
+          }).join('')
+    )}
+
+    ${adminSectionHTML('👥', 'Nouveaux comptes (7 jours)', newProfiles.length,
+      newProfiles.length === 0
+        ? '<div class="admin-empty">Aucun nouveau compte</div>'
+        : newProfiles.map(p => `
+          <div class="admin-row" id="adminrow-${p.id}">
+            <div class="admin-row-body" style="display:flex;align-items:center;gap:12px">
+              ${p.photo_url ? `<img src="${esc(p.photo_url)}" class="admin-avatar-sm">` : `<div class="admin-avatar-sm admin-avatar-empty">${esc((p.prenom||'?')[0].toUpperCase())}</div>`}
+              <div>
+                <div class="admin-row-name">${esc(p.prenom || '?')}</div>
+                <div class="admin-row-meta">${esc(p.quartier || '')}${p.presence_status ? ` · ${presenceLabel(p.presence_status)}` : ''} · ${formatRelTime(p.created_at)}</div>
+              </div>
+            </div>
+            <div class="admin-row-actions">
+              <button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${p.id}'})">Voir</button>
+            </div>
+          </div>`).join('')
+    )}
+  `;
+}
+
+function adminSectionHTML(icon, title, count, bodyHTML) {
+  return `
+    <div class="admin-section">
+      <div class="admin-section-header">
+        <span class="admin-section-icon">${icon}</span>
+        <span class="admin-section-title">${title}</span>
+        <span class="admin-count-badge ${count > 0 ? 'admin-count-red' : 'admin-count-grey'}">${count}</span>
+      </div>
+      <div class="admin-section-body">${bodyHTML}</div>
+    </div>`;
+}
+
+async function adminIgnoreReport(reportId) {
+  const row = document.getElementById(`adminrow-${reportId}`);
+  if (row) row.style.opacity = '0.4';
+  await db.from('reports').update({ resolved: true }).eq('id', reportId);
+  if (row) row.remove();
+}
+
+async function adminDeletePost(postId, reportId) {
+  if (!confirm('Supprimer ce post définitivement ?')) return;
+  await db.from('posts').delete().eq('id', postId);
+  await db.from('reports').update({ resolved: true }).eq('id', reportId);
+  const row = document.getElementById(`adminrow-${reportId}`);
+  if (row) row.remove();
+  showToast('Post supprimé.');
+}
+
+async function adminResolveAlert(alertId) {
+  await db.from('admin_alerts').update({ resolved: true }).eq('id', alertId);
+  const row = document.getElementById(`adminrow-${alertId}`);
+  if (row) row.remove();
+}
+
+async function adminValidateVerif(verifId, type, userId) {
+  if (!userId) return;
+  const field = type === 'photo' ? { photo_verified: true } : { phone_verified: true };
+  await db.from('profiles').update(field).eq('id', userId);
+  await db.from('verification_requests').update({ status: 'approved' }).eq('id', verifId);
+  const row = document.getElementById(`adminrow-${verifId}`);
+  if (row) row.remove();
+  showToast(`${type === 'photo' ? 'Photo' : 'Téléphone'} validé.`);
+}
+
+async function adminRejectVerif(verifId) {
+  await db.from('verification_requests').update({ status: 'rejected' }).eq('id', verifId);
+  const row = document.getElementById(`adminrow-${verifId}`);
+  if (row) row.remove();
+  showToast('Demande rejetée.');
 }
 
 init();
