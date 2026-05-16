@@ -595,7 +595,7 @@ function renderRegister() {
           <input type="text" class="form-input" id="reg-prenom" placeholder="Votre prénom" autocomplete="given-name">
         </div>
         <div class="form-group">
-          <label class="form-label">Nom de famille</label>
+          <label class="form-label">Nom de famille <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(optionnel)</span></label>
           <input type="text" class="form-input" id="reg-last-name" placeholder="Votre nom de famille" autocomplete="family-name">
         </div>
         <div class="form-group">
@@ -697,7 +697,7 @@ async function handleRegister() {
 
   const pledge = document.getElementById('reg-pledge')?.checked;
 
-  if (!prenom || !lastName || !email || !pass || !confirm) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
+  if (!prenom || !email || !pass || !confirm) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
   if (!presence_status) { errEl.textContent = 'Indiquez votre situation dans ce quartier.'; return; }
   if (!quartier)        { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
   if (pass !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; return; }
@@ -823,7 +823,7 @@ function renderOnboarding() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Nom de famille <span style="color:var(--terracotta)">*</span></label>
+          <label class="form-label">Nom de famille <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(optionnel)</span></label>
           <input type="text" class="form-input" id="ob-last-name"
             placeholder="Votre nom de famille" maxlength="60" autocomplete="family-name"
             value="${esc(p?.last_name || '')}">
@@ -953,7 +953,6 @@ async function handleOnboardingSubmit() {
   const pledge = document.getElementById('ob-pledge')?.checked;
 
   if (!prenom)          { errEl.textContent = 'Le prénom est obligatoire.'; return; }
-  if (!lastName)        { errEl.textContent = 'Le nom de famille est obligatoire.'; return; }
   if (!presence_status) { errEl.textContent = 'Indiquez votre situation.'; return; }
   if (!quartier)        { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
   if (!birthdateVal)    { errEl.textContent = 'La date de naissance est obligatoire.'; return; }
