@@ -3437,7 +3437,7 @@ async function renderAdmin() {
       </div>
     </div>`;
 
-  const [reportsRes, alertsRes, verifsRes] = await Promise.all([
+  const [reportsRes, alertsRes, verifsRes, supportRes] = await Promise.all([
     db.from('reports')
       .select('id, target_type, target_id, reason, created_at, reporter:reporter_id(prenom)')
       .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
@@ -3447,11 +3447,15 @@ async function renderAdmin() {
     db.from('verification_requests')
       .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
       .eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
+    db.from('support_messages')
+      .select('id, prenom, last_name, email, message, created_at, read')
+      .eq('read', false).order('created_at', { ascending: false }).limit(50),
   ]);
 
-  const reports = reportsRes.data || [];
-  const alerts  = alertsRes.data || [];
-  const verifs  = verifsRes.data || [];
+  const reports  = reportsRes.data  || [];
+  const alerts   = alertsRes.data   || [];
+  const verifs   = verifsRes.data   || [];
+  const supports = supportRes.data  || [];
 
   const el = document.getElementById('admin-content');
   if (!el) return;
@@ -3527,6 +3531,23 @@ async function renderAdmin() {
           }).join('')
     )}
 
+    ${adminSectionHTML('✉️', 'Messages support', supports.length,
+      supports.length === 0
+        ? '<div class="admin-empty">Aucun message en attente</div>'
+        : supports.map(s => `
+          <div class="admin-row" id="adminrow-${s.id}">
+            <div class="admin-row-body">
+              <div class="admin-row-name">${esc(s.prenom || '')} ${esc(s.last_name || '')} <span class="admin-row-meta">· ${esc(s.email || '')}</span></div>
+              <div class="admin-row-reason" style="margin-top:6px;white-space:pre-wrap">${esc(s.message)}</div>
+              <div class="admin-row-meta" style="margin-top:4px">${formatRelTime(s.created_at)}</div>
+            </div>
+            <div class="admin-row-actions">
+              <a class="admin-btn admin-btn-ghost" href="mailto:${esc(s.email)}?subject=Voisy%20Support">Répondre</a>
+              <button class="admin-btn admin-btn-muted" onclick="adminMarkSupportRead('${s.id}')">Lu ✓</button>
+            </div>
+          </div>`).join('')
+    )}
+
     ${adminSectionHTML('👥', 'Nouveaux comptes (7 j)', 0, `
       <div class="admin-search-row">
         <input type="text" class="admin-search-input" id="admin-np-search"
@@ -3587,6 +3608,12 @@ async function adminValidateVerif(verifId, type, userId) {
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast(`${type === 'photo' ? 'Photo' : 'Téléphone'} validé.`);
+}
+
+async function adminMarkSupportRead(msgId) {
+  await db.from('support_messages').update({ read: true }).eq('id', msgId);
+  const row = document.getElementById(`adminrow-${msgId}`);
+  if (row) row.remove();
 }
 
 async function adminRejectVerif(verifId) {
@@ -3699,7 +3726,7 @@ function showSupportModal() {
   openModal(`
     <div class="modal-title">💬 Contacter l'équipe Voisy</div>
     <p style="font-size:14px;color:var(--text-muted);margin-bottom:20px;line-height:1.55">
-      Votre message sera envoyé à <strong>contact@voisy.eu</strong>.<br>Nous vous répondrons sous 24h.
+      Nous vous répondrons à <strong>${esc(state.user?.email || '')}</strong> sous 24h.
     </p>
     <textarea class="form-input" id="sup-msg"
       placeholder="Votre message…" maxlength="1000"
@@ -3722,14 +3749,12 @@ function showSupportModal() {
     const btn = document.getElementById('sup-send');
     showLoading(btn, true);
 
-    const { error } = await db.functions.invoke('send-support-message', {
-      body: {
-        prenom:    state.profile?.prenom    || '',
-        last_name: state.profile?.last_name || '',
-        email:     state.user?.email        || '',
-        user_id:   state.user?.id           || '',
-        message:   msg,
-      },
+    const { error } = await db.from('support_messages').insert({
+      user_id:   state.user?.id           || null,
+      prenom:    state.profile?.prenom    || '',
+      last_name: state.profile?.last_name || '',
+      email:     state.user?.email        || '',
+      message:   msg,
     });
 
     showLoading(btn, false);
