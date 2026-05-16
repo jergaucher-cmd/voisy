@@ -802,17 +802,24 @@ function renderOnboarding() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Votre quartier <span style="color:var(--terracotta)">*</span></label>
-          <select class="form-select" id="ob-quartier">
-            <option value="">Choisir un quartier…</option>
-            ${QUARTIERS.map(q => `<option value="${esc(q)}" ${p?.quartier === q ? 'selected' : ''}>${esc(q)}</option>`).join('')}
+          <label class="form-label">Ville <span style="color:var(--terracotta)">*</span></label>
+          <select class="form-select" id="ob-ville">
+            <option value="Angers" selected>Angers</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Je suis dans ce quartier… <span style="color:var(--terracotta)">*</span></label>
+          <label class="form-label">Ma situation <span style="color:var(--terracotta)">*</span></label>
           ${presenceBtnsHTML('ob-presence-group')}
           <input type="hidden" id="ob-presence" value="">
+        </div>
+
+        <div class="form-group" id="ob-quartier-group" style="display:none">
+          <label class="form-label">Quartier <span style="color:var(--terracotta)">*</span></label>
+          <select class="form-select" id="ob-quartier">
+            <option value="">Choisir un quartier…</option>
+            ${QUARTIERS.map(q => `<option value="${esc(q)}" ${p?.quartier === q ? 'selected' : ''}>${esc(q)}</option>`).join('')}
+          </select>
         </div>
 
         <div class="form-group">
@@ -872,6 +879,8 @@ function renderOnboarding() {
     document.querySelectorAll('#ob-presence-group .presence-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('ob-presence').value = btn.dataset.value;
+    const qg = document.getElementById('ob-quartier-group');
+    if (qg) qg.style.display = btn.dataset.value === 'passage' ? 'none' : '';
   });
 }
 
@@ -916,8 +925,8 @@ async function handleOnboardingSubmit() {
 
   if (!prenom)          { errEl.textContent = 'Le prénom est obligatoire.'; return; }
   if (!lastName)        { errEl.textContent = 'Le nom de famille est obligatoire.'; return; }
-  if (!quartier)        { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
-  if (!presence_status) { errEl.textContent = 'Indiquez votre situation dans ce quartier.'; return; }
+  if (!presence_status) { errEl.textContent = 'Indiquez votre situation.'; return; }
+  if (presence_status !== 'passage' && !quartier) { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
   if (!birthdateVal)    { errEl.textContent = 'La date de naissance est obligatoire.'; return; }
   if (!pledge)          { errEl.textContent = 'Merci de cocher la case d\'engagement — c\'est la base de la confiance sur Voisy 💚'; return; }
 
@@ -933,7 +942,7 @@ async function handleOnboardingSubmit() {
     email:          state.user.email,
     prenom,
     last_name:      lastName,
-    quartier,
+    quartier:       presence_status === 'passage' ? null : quartier,
     presence_status,
     birthdate:      birthdateVal,
     age,
@@ -1058,7 +1067,7 @@ async function renderFeed() {
         </div>
         <div class="feed-brand-sub">MON QUARTIER PREND VIE</div>
         <div class="feed-meta">
-          <span>📍 ${esc(state.profile?.quartier || 'Angers')}</span>
+          <span>📍 ${state.profile?.presence_status === 'passage' ? '🌍 De passage — Angers' : esc(state.profile?.quartier || 'Angers')}</span>
           <button class="notif-bell-btn" id="btn-notif-bell" aria-label="Notifications">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -1391,6 +1400,7 @@ function postCardHTML(post, alertUserIds = new Set()) {
 
   const isOwn = state.user?.id === post.user_id;
   const ownDot = isOwn ? `<span class="pc-own-dot" title="Votre publication"></span>` : '';
+  const isPassage = profile.presence_status === 'passage';
 
   return `
     <article class="post-card" data-post-id="${esc(post.id)}" data-categorie="${esc(post.categorie)}">
@@ -1400,6 +1410,7 @@ function postCardHTML(post, alertUserIds = new Set()) {
           ${ownDot}
           <span class="pc-author-name">${esc(profile.prenom || 'Habitant·e')}${isUnderReview ? ' ⚠️' : ''}</span>
           ${energyIcon ? `<span class="pc-energy-icon">${energyIcon}</span>` : ''}
+          ${isPassage ? `<span class="badge-passage">🌍 De passage</span>` : ''}
         </div>
       </div>
       ${dateLine}
@@ -1488,7 +1499,10 @@ function openPostDetail(postId) {
       ${avatarEl}
       <div class="pd-author-info">
         <div class="pd-author-name">${esc(profile.prenom || 'Habitant·e')}${vBadges}${isUnderReview ? ' ⚠️' : ''}</div>
-        <div class="pd-author-sub">📍 ${esc(profile.quartier || '')}${profile.presence_status ? ` · ${presenceLabel(profile.presence_status)}` : ''}</div>
+        <div class="pd-author-sub">${profile.presence_status === 'passage'
+          ? '🌍 De passage — Angers'
+          : `📍 ${esc(profile.quartier || '')}${profile.presence_status ? ` · ${presenceLabel(profile.presence_status)}` : ''}`
+        }</div>
         ${energyBadge}
       </div>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--muted)"><polyline points="9 18 15 12 9 6"/></svg>
@@ -1643,9 +1657,9 @@ function renderNewPost() {
         </div>
 
         <div id="post-error" class="form-error" style="margin-bottom:12px"></div>
-        <button class="btn btn-secondary" id="btn-publish" disabled>Publier dans mon quartier</button>
+        <button class="btn btn-secondary" id="btn-publish" disabled>${state.profile?.presence_status === 'passage' ? 'Publier sur Voisy' : 'Publier dans mon quartier'}</button>
         <p style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-muted)">
-          Visible dans <strong>${esc(state.profile?.quartier || 'votre quartier')}</strong>
+          Visible dans <strong>${state.profile?.presence_status === 'passage' ? 'Tout Angers' : esc(state.profile?.quartier || 'votre quartier')}</strong>
         </p>
         <p style="text-align:center;margin-top:6px;font-size:11px;color:var(--text-muted);opacity:0.7;line-height:1.4">
           Voisy est une communauté gratuite — aucune transaction financière autorisée.
@@ -2550,8 +2564,11 @@ async function renderProfile(userId) {
         ${avatarEl}
         ${isOwn ? `<input type="file" id="avatar-upload" accept="image/*" style="display:none">` : ''}
         <div class="profile-name">${esc(profile.prenom)}</div>
-        <div class="profile-quartier-badge">📍 ${esc(profile.quartier)}</div>
-        ${profile.presence_status ? `<div class="profile-presence-badge">${presenceLabel(profile.presence_status)}</div>` : ''}
+        ${profile.presence_status === 'passage'
+          ? `<div class="badge-passage-profile">🌍 De passage</div>`
+          : `${profile.quartier ? `<div class="profile-quartier-badge">📍 ${esc(profile.quartier)}</div>` : ''}
+             ${profile.presence_status ? `<div class="profile-presence-badge">${presenceLabel(profile.presence_status)}</div>` : ''}`
+        }
         <div class="trust-badges">
           <span class="trust-badge ${profile.photo_verified ? 'verified' : 'unverified'}">
             📷 Photo ${profile.photo_verified ? 'vérifiée ✓' : 'non vérifiée'}
@@ -2753,15 +2770,16 @@ async function renderEditProfile() {
         <input type="text" class="form-input" id="edit-prenom" value="${esc(p?.prenom || '')}" maxlength="30">
       </div>
       <div class="form-group">
+        <label class="form-label">Ma situation <span style="color:var(--terracotta)">*</span></label>
+        ${presenceBtnsHTML('edit-presence-group', p?.presence_status || '')}
+        <input type="hidden" id="edit-presence" value="${esc(p?.presence_status || '')}">
+      </div>
+
+      <div class="form-group" id="edit-quartier-group" ${p?.presence_status === 'passage' ? 'style="display:none"' : ''}>
         <label class="form-label">Quartier <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(toujours visible)</span></label>
         <select class="form-select" id="edit-quartier">
           ${QUARTIERS.map(q => `<option value="${esc(q)}" ${p?.quartier === q ? 'selected' : ''}>${esc(q)}</option>`).join('')}
         </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Je suis dans ce quartier… <span style="color:var(--terracotta)">*</span></label>
-        ${presenceBtnsHTML('edit-presence-group', p?.presence_status || '')}
-        <input type="hidden" id="edit-presence" value="${esc(p?.presence_status || '')}">
       </div>
       <div class="form-group">
         <label class="form-label">Date de naissance <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(privée — jamais affichée publiquement)</span></label>
@@ -2847,6 +2865,8 @@ async function renderEditProfile() {
     document.querySelectorAll('#edit-presence-group .presence-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('edit-presence').value = btn.dataset.value;
+    const qg = document.getElementById('edit-quartier-group');
+    if (qg) qg.style.display = btn.dataset.value === 'passage' ? 'none' : '';
   });
 
   document.getElementById('edit-energy-group').addEventListener('click', e => {
@@ -2915,14 +2935,15 @@ async function renderEditProfile() {
     const age = birthdateVal ? computeAge(birthdateVal) : (state.profile?.age ?? null);
 
     showLoading(btn, true);
+    const finalQuartier = presence_status === 'passage' ? null : quartier;
     const { error } = await db.from('profiles')
-      .update({ prenom, quartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, energy_type, about_me, phone: phone || null })
+      .update({ prenom, quartier: finalQuartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, energy_type, about_me, phone: phone || null })
       .eq('id', state.user.id);
     showLoading(btn, false);
 
     if (error) { errEl.textContent = 'Erreur lors de la sauvegarde.'; return; }
 
-    state.profile = { ...state.profile, prenom, quartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, energy_type, about_me, phone: phone || null };
+    state.profile = { ...state.profile, prenom, quartier: finalQuartier, presence_status, birthdate: birthdateVal || null, age, gender, bio, energy_type, about_me, phone: phone || null };
     showToast('Profil mis à jour !');
     navigate('profile');
   };

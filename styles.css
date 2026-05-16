@@ -1273,6 +1273,23 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   letter-spacing: 0.03em;
 }
 
+/* De passage badge — compact (post cards, detail sheet) */
+.badge-passage {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 6px; border-radius: 20px;
+  background: #FFF3E0; border: 1px solid #E8834A;
+  font-size: 9px; font-weight: 700; color: #E8834A;
+  letter-spacing: 0.02em; flex-shrink: 0; white-space: nowrap;
+}
+/* De passage badge — profile hero (dark background) */
+.badge-passage-profile {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 12px; border-radius: 20px;
+  background: rgba(255,243,224,0.18); border: 1px solid rgba(232,131,74,0.55);
+  font-size: 12px; font-weight: 700; color: #FFB97A;
+  margin-top: 5px; letter-spacing: 0.03em;
+}
+
 /* Profile info pills (age/gender) */
 .profile-info-pills { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
 .profile-info-pill {
