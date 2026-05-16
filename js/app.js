@@ -1376,7 +1376,7 @@ function postCardHTML(post, alertUserIds = new Set()) {
   const typeLabel = isEvenement ? 'Événement'
     : post.type === 'besoin'  ? 'Besoin'
     : post.type === 'balade'  ? 'Balade'
-    : 'Offre';
+    : 'Proposition';
 
   const desc = post.description || '';
   const truncDesc = desc.length > 60 ? desc.slice(0, 60) + '…' : desc;
