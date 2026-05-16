@@ -754,9 +754,11 @@ function renderVerify(email) {
       <button class="btn btn-outline" style="max-width:280px; margin-top:12px" onclick="navigate('login')">
         Aller à la connexion
       </button>
-      <p style="margin-top:32px; font-size:13px; color:var(--text-muted); line-height:1.5; max-width:280px; margin-left:auto; margin-right:auto; text-align:center">
-        📬 L'email peut parfois arriver dans vos spams ou courriers indésirables. Pensez à vérifier !
-      </p>
+      <div style="margin-top:28px;background:#FEF3C7;border:1.5px solid #F59E0B;border-radius:10px;padding:14px 18px;max-width:320px;margin-left:auto;margin-right:auto;text-align:center">
+        <p style="font-size:14px;font-weight:700;color:#92400E;line-height:1.6;margin:0">
+          📬 Notre email peut arriver dans vos spams ou courriers indésirables — pensez à vérifier et à marquer Voisy comme expéditeur de confiance !
+        </p>
+      </div>
     </div>`;
 }
 
@@ -874,7 +876,7 @@ function renderOnboarding() {
         <div class="zero-money-charter">
           <div class="zero-money-title">💚 Charte Voisy — Zéro argent</div>
           <p class="zero-money-text">Voisy est 100% gratuit. Aucune transaction financière n'est autorisée. Les gestes de reconnaissance spontanés entre membres (un repas partagé, un cadeau de voyage…) font partie de l'esprit d'entraide de Voisy et restent à la discrétion de chacun.</p>
-          <p class="zero-money-text" style="margin-top:8px">🏡 Les contenus à caractère sexuel ou destinés à un public adulte uniquement sont interdits — Voisy est un espace familial et bienveillant ouvert à tous.</p>
+          <p class="zero-money-text" style="margin-top:8px">🏡 Les contenus à caractère sexuel ou destinés à un public adulte uniquement sont interdits — Voisy est un espace respectueux et bienveillant avec un esprit familial, réservé aux personnes de 18 ans et plus.</p>
         </div>
 
         <label class="ob-pledge-label">
@@ -2857,7 +2859,7 @@ async function renderEditProfile() {
       </div>
 
       <div class="form-group">
-        <label class="form-label">Prénom <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(toujours visible)</span></label>
+        <label class="form-label">Prénom <span style="color:var(--terracotta)">*</span> <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(toujours visible)</span></label>
         <input type="text" class="form-input" id="edit-prenom" value="${esc(p?.prenom || '')}" maxlength="30">
       </div>
       <div class="form-group">
@@ -2867,13 +2869,13 @@ async function renderEditProfile() {
       </div>
 
       <div class="form-group" id="edit-quartier-group">
-        <label class="form-label">Quartier <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(toujours visible)</span></label>
+        <label class="form-label">Quartier <span style="color:var(--terracotta)">*</span> <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(toujours visible)</span></label>
         <select class="form-select" id="edit-quartier">
           ${QUARTIERS.map(q => `<option value="${esc(q)}" ${p?.quartier === q ? 'selected' : ''}>${esc(q)}</option>`).join('')}
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Date de naissance <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(privée — jamais affichée publiquement)</span></label>
+        <label class="form-label">Date de naissance <span style="color:var(--terracotta)">*</span> <span style="color:var(--text-light);font-weight:500;text-transform:none;font-size:11px">(privée — jamais affichée publiquement)</span></label>
         <input type="date" class="form-input" id="edit-birthdate" max="${max18Date()}" value="${esc(p?.birthdate || '')}">
         ${p?.birthdate ? `<div class="form-hint">Âge calculé : ${computeAge(p.birthdate)} ans</div>` : ''}
       </div>
