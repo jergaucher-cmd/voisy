@@ -612,7 +612,18 @@ function renderRegister() {
           <div class="form-error hidden" id="reg-confirm-error">Les mots de passe ne correspondent pas.</div>
         </div>
         <div class="form-group">
-          <label class="form-label">Votre quartier</label>
+          <label class="form-label">Ville <span style="color:var(--terracotta)">*</span></label>
+          <select class="form-select" id="reg-ville">
+            <option value="Angers" selected>Angers</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ma situation dans ce quartier <span style="color:var(--terracotta)">*</span></label>
+          ${presenceBtnsHTML('reg-presence-group')}
+          <input type="hidden" id="reg-presence" value="">
+        </div>
+        <div class="form-group">
+          <label class="form-label"><span id="reg-quartier-label">Votre quartier</span> <span style="color:var(--terracotta)">*</span></label>
           <select class="form-select" id="reg-quartier">
             <option value="">Choisir un quartier…</option>
             ${QUARTIERS.map(q => `<option value="${esc(q)}">${esc(q)}</option>`).join('')}
@@ -643,6 +654,17 @@ function renderRegister() {
   document.getElementById('tab-register').onclick = () => navigate('register');
   document.getElementById('btn-register').onclick = handleRegister;
 
+  const labelMap = { habite: 'Votre quartier', travaille: 'Votre quartier de travail', passage: 'Dans quel quartier êtes-vous ?' };
+  document.getElementById('reg-presence-group').addEventListener('click', e => {
+    const btn = e.target.closest('.presence-btn');
+    if (!btn) return;
+    document.querySelectorAll('#reg-presence-group .presence-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('reg-presence').value = btn.dataset.value;
+    const lbl = document.getElementById('reg-quartier-label');
+    if (lbl) lbl.textContent = labelMap[btn.dataset.value] || 'Votre quartier';
+  });
+
   const passEl    = document.getElementById('reg-pass');
   const confirmEl = document.getElementById('reg-confirm');
   const hintEl    = document.getElementById('reg-confirm-error');
@@ -661,23 +683,26 @@ function renderRegister() {
 }
 
 async function handleRegister() {
-  const prenom       = document.getElementById('reg-prenom').value.trim();
-  const lastName     = document.getElementById('reg-last-name').value.trim();
-  const email        = document.getElementById('reg-email').value.trim();
-  const pass         = document.getElementById('reg-pass').value;
-  const confirm      = document.getElementById('reg-confirm').value;
-  const quartier     = document.getElementById('reg-quartier').value;
-  const birthdateVal = document.getElementById('reg-birthdate').value;
-  const errEl        = document.getElementById('reg-error');
-  const btn          = document.getElementById('btn-register');
+  const prenom          = document.getElementById('reg-prenom').value.trim();
+  const lastName        = document.getElementById('reg-last-name').value.trim();
+  const email           = document.getElementById('reg-email').value.trim();
+  const pass            = document.getElementById('reg-pass').value;
+  const confirm         = document.getElementById('reg-confirm').value;
+  const presence_status = document.getElementById('reg-presence').value;
+  const quartier        = document.getElementById('reg-quartier').value;
+  const birthdateVal    = document.getElementById('reg-birthdate').value;
+  const errEl           = document.getElementById('reg-error');
+  const btn             = document.getElementById('btn-register');
   errEl.textContent = '';
 
   const pledge = document.getElementById('reg-pledge')?.checked;
 
-  if (!prenom || !lastName || !email || !pass || !confirm || !quartier) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
+  if (!prenom || !lastName || !email || !pass || !confirm) { errEl.textContent = 'Veuillez remplir tous les champs.'; return; }
+  if (!presence_status) { errEl.textContent = 'Indiquez votre situation dans ce quartier.'; return; }
+  if (!quartier)        { errEl.textContent = 'Veuillez choisir votre quartier.'; return; }
   if (pass !== confirm) { errEl.textContent = 'Les mots de passe ne correspondent pas.'; return; }
-  if (!birthdateVal) { errEl.textContent = 'Veuillez indiquer votre date de naissance.'; return; }
-  if (!pledge) { errEl.textContent = 'Merci d\'accepter cet engagement pour rejoindre Voisy.'; return; }
+  if (!birthdateVal)    { errEl.textContent = 'Veuillez indiquer votre date de naissance.'; return; }
+  if (!pledge)          { errEl.textContent = 'Merci d\'accepter cet engagement pour rejoindre Voisy.'; return; }
 
   const age = computeAge(birthdateVal);
   if (age === null || age < 18) {
@@ -691,7 +716,7 @@ async function handleRegister() {
   const { data, error } = await db.auth.signUp({
     email, password: pass,
     options: {
-      data: { prenom, quartier },
+      data: { prenom, quartier, presence_status },
       emailRedirectTo: window.location.origin
     }
   });
@@ -706,6 +731,7 @@ async function handleRegister() {
       prenom,
       last_name: lastName,
       quartier,
+      presence_status,
       birthdate: birthdateVal,
       age,
       trust_score: 0
