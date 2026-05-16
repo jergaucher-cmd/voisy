@@ -2763,7 +2763,6 @@ async function handleLogout() {
 }
 
 function showAppReviewModal() {
-  console.log('[showAppReviewModal] → table: app_reviews');
   let selectedScore = 0;
 
   openModal(`
@@ -3139,7 +3138,6 @@ async function submitReport(type, targetId, reason) {
 
 // ===== RATING =====
 function showRatingModal(ratedId, ratedName, postId) {
-  console.log('[showRatingModal] → table: ratings | ratedId:', ratedId, '| postId:', postId);
   let selectedScore = 0;
   const SCORE_LABELS = ['', 'Très mauvaise expérience', 'Mauvaise expérience', 'Expérience correcte', 'Bonne expérience', 'Excellente expérience'];
 
@@ -3208,15 +3206,10 @@ async function submitRating(ratedId, postId, score, comment) {
   };
   if (postId) payload.post_id = postId;
 
-  console.log('[submitRating] → table: ratings | payload:', JSON.stringify(payload));
-
   const { error } = await db.from('ratings')
     .upsert(payload, { onConflict: 'rater_id,rated_id', ignoreDuplicates: false });
 
-  if (error) {
-    console.error('[submitRating] ERREUR:', error.code, error.message, error.details, error.hint);
-    return false;
-  }
+  if (error) { console.error(error); return false; }
   insertNotif(ratedId, 'rating',
     `${state.profile?.prenom || 'Un habitant'} a noté votre interaction (${score}/5).`,
     null);
