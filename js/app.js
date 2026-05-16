@@ -722,8 +722,8 @@ function renderVerify(email) {
       <button class="btn btn-outline" style="max-width:280px; margin-top:12px" onclick="navigate('login')">
         Aller à la connexion
       </button>
-      <p style="margin-top:32px; font-size:13px; color:var(--text-muted)">
-        Pas reçu l'email ? Vérifiez vos spams.
+      <p style="margin-top:32px; font-size:13px; color:var(--text-muted); line-height:1.5; max-width:280px; margin-left:auto; margin-right:auto; text-align:center">
+        📬 L'email peut parfois arriver dans vos spams ou courriers indésirables. Pensez à vérifier !
       </p>
     </div>`;
 }
@@ -741,10 +741,46 @@ function renderOnboarding() {
           </svg>
         </div>
         <h1>Voisy</h1>
-        <p>Bienvenue ! Dites-nous qui vous êtes.</p>
+        <p>Votre profil</p>
       </div>
 
       <div class="auth-body">
+
+        <div class="ob-stepper">
+          <div class="ob-step ob-step-done">
+            <div class="ob-step-circle">✓</div>
+            <div class="ob-step-label">Inscription</div>
+          </div>
+          <div class="ob-step-connector"></div>
+          <div class="ob-step ob-step-active">
+            <div class="ob-step-circle">2</div>
+            <div class="ob-step-label">Profil</div>
+          </div>
+        </div>
+
+        <div class="ob-welcome-msg">
+          Vous êtes bien inscrit·e ! Complétez votre profil — c'est ce que les autres membres du quartier verront de vous.
+        </div>
+
+        <div class="ob-photo-section">
+          <label class="ob-avatar-label" for="ob-avatar-upload">
+            <div class="ob-avatar-circle" id="ob-avatar-preview">
+              ${p?.photo_url
+                ? `<img src="${esc(p.photo_url)}" alt="Photo de profil">`
+                : `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="60" height="60">
+                    <circle cx="50" cy="36" r="22" fill="#D1D5DB"/>
+                    <ellipse cx="50" cy="90" rx="36" ry="26" fill="#D1D5DB"/>
+                  </svg>`
+              }
+            </div>
+            <div class="ob-avatar-hint">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Ajouter une photo <span style="font-weight:500;color:var(--muted)">(optionnel)</span>
+            </div>
+          </label>
+          <input type="file" id="ob-avatar-upload" accept="image/*" style="display:none">
+        </div>
+
         <div class="form-group">
           <label class="form-label">Prénom <span style="color:var(--terracotta)">*</span></label>
           <input type="text" class="form-input" id="ob-prenom"
@@ -798,7 +834,7 @@ function renderOnboarding() {
 
         <div class="zero-money-charter">
           <div class="zero-money-title">💚 Charte Voisy — Zéro argent</div>
-          <p class="zero-money-text">Aucune transaction financière n'est autorisée sur Voisy — ni paiement, ni troc, ni pourboire. Voisy est 100% gratuit.</p>
+          <p class="zero-money-text">Voisy est 100% gratuit. Aucune transaction financière n'est autorisée. Les gestes de reconnaissance spontanés entre membres (un repas partagé, un cadeau de voyage…) font partie de l'esprit d'entraide de Voisy et restent à la discrétion de chacun.</p>
           <p class="zero-money-text" style="margin-top:8px">🏡 Les contenus à caractère sexuel ou destinés à un public adulte uniquement sont interdits — Voisy est un espace familial et bienveillant ouvert à tous.</p>
         </div>
 
@@ -820,6 +856,7 @@ function renderOnboarding() {
     </div>`;
 
   document.getElementById('btn-ob-submit').onclick = handleOnboardingSubmit;
+  document.getElementById('ob-avatar-upload').onchange = handleOnboardingAvatarUpload;
   document.getElementById('ob-prenom').addEventListener('keydown', e => {
     if (e.key === 'Enter') handleOnboardingSubmit();
   });
@@ -830,6 +867,31 @@ function renderOnboarding() {
     btn.classList.add('active');
     document.getElementById('ob-presence').value = btn.dataset.value;
   });
+}
+
+async function handleOnboardingAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('Image trop lourde (max 2 Mo).', 'error'); return; }
+
+  const label = document.querySelector('label[for="ob-avatar-upload"]');
+  if (label) label.style.opacity = '0.6';
+  showToast('Envoi de la photo…', 'info');
+
+  const ext  = file.name.split('.').pop();
+  const path = `${state.user.id}/avatar.${ext}`;
+
+  const { error: uploadErr } = await db.storage.from('avatars').upload(path, file, { upsert: true });
+  if (label) label.style.opacity = '';
+  if (uploadErr) { showToast('Erreur lors de l\'upload.', 'error'); return; }
+
+  const { data: { publicUrl } } = db.storage.from('avatars').getPublicUrl(path);
+  await db.from('profiles').update({ photo_url: publicUrl }).eq('id', state.user.id);
+  if (state.profile) state.profile.photo_url = publicUrl;
+
+  const preview = document.getElementById('ob-avatar-preview');
+  if (preview) preview.innerHTML = `<img src="${esc(publicUrl)}" alt="Photo de profil">`;
+  showToast('Photo ajoutée !');
 }
 
 async function handleOnboardingSubmit() {
@@ -913,7 +975,7 @@ function renderWelcome() {
         <div class="welcome-step">
           <div class="welcome-step-num">2</div>
           <div class="welcome-step-body">
-            <div class="welcome-step-title">Échange avec tes voisins</div>
+            <div class="welcome-step-title">Échange avec les gens du quartier</div>
             <div class="welcome-step-desc">Les messages restent privés, entre vous deux.</div>
           </div>
         </div>
@@ -1201,13 +1263,17 @@ function postCardHTML(post, alertUserIds = new Set()) {
     ? `<span class="post-type-badge evenement"><span class="post-category-icon">🎭</span> Événement du quartier</span>`
     : post.type === 'besoin'
       ? `<span class="post-type-badge besoin"><span class="post-category-icon">${getCatIcon(post.categorie)}</span> J'ai besoin de…</span>`
-      : `<span class="post-type-badge offre"><span class="post-category-icon">${getCatIcon(post.categorie)}</span> Je propose…</span>`;
+      : post.type === 'balade'
+        ? `<span class="post-type-badge balade"><span class="post-category-icon">🐾</span> Je propose une balade</span>`
+        : `<span class="post-type-badge offre"><span class="post-category-icon">${getCatIcon(post.categorie)}</span> Je propose…</span>`;
 
   const helpBtn = isEvenement
     ? `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">📅 Je participe</button>`
     : post.type === 'besoin'
       ? `<button class="btn-help" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">🤝 Je peux aider</button>`
-      : `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">✋ Je suis intéressé·e</button>`;
+      : post.type === 'balade'
+        ? `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">🐾 Je participe</button>`
+        : `<button class="btn-help offre" data-action="help" data-post-id="${esc(post.id)}" data-owner-id="${esc(post.user_id)}">✋ Je suis intéressé·e</button>`;
 
   const eventDateRow = (isEvenement && post.expires_at)
     ? `<div class="post-event-date">📅 ${esc(formatEventDate(post.expires_at))}</div>`
@@ -1350,6 +1416,11 @@ function renderNewPost() {
             <div class="post-type-option-label">Je propose…</div>
             <div class="post-type-option-desc">Offrez votre aide</div>
           </div>
+          <div class="post-type-option hidden" data-type="balade" id="type-balade">
+            <div class="post-type-option-icon">🐾</div>
+            <div class="post-type-option-label">Je propose une balade</div>
+            <div class="post-type-option-desc">Organisez une sortie</div>
+          </div>
         </div>
       </div>
       <div class="post-type-evenement hidden" id="type-evenement">
@@ -1385,7 +1456,7 @@ function renderNewPost() {
         <div class="form-group">
           <label class="form-label">Description</label>
           <textarea class="form-input" id="post-desc" placeholder="Décrivez votre besoin ou votre offre en quelques mots…" maxlength="300"></textarea>
-          <div class="char-count" id="char-count">0 / 300</div>
+          <div class="char-count char-error" id="char-count">Minimum 10 caractères (0/300)</div>
         </div>
 
         <div id="post-error" class="form-error" style="margin-bottom:12px"></div>
@@ -1410,6 +1481,7 @@ function renderNewPost() {
       besoin: { icon: '🙋', label: 'J\'ai besoin de…',      desc: 'Cherchez de l\'aide'       },
       offre:  { icon: '🐾', label: 'Je propose…',            desc: 'Proposez votre aide'       },
       placeholder: 'Décris ton besoin ou ton offre en quelques mots…',
+      baladePlaceholder: 'Décris la balade — lieu, durée, type d\'animal…',
     },
     'Objets': {
       besoin: { icon: '🙋', label: 'J\'ai besoin de…',      desc: 'Cherchez un objet'         },
@@ -1450,14 +1522,22 @@ function renderNewPost() {
   // Type selection
   document.getElementById('type-besoin').onclick = () => {
     postState.type = 'besoin';
-    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre'));
+    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre', 'balade'));
     document.getElementById('type-besoin').classList.add('selected', 'besoin');
     checkPublishReady();
   };
   document.getElementById('type-offre').onclick = () => {
     postState.type = 'offre';
-    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre'));
+    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre', 'balade'));
     document.getElementById('type-offre').classList.add('selected', 'offre');
+    checkPublishReady();
+  };
+  document.getElementById('type-balade').onclick = () => {
+    postState.type = 'balade';
+    document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre', 'balade'));
+    document.getElementById('type-balade').classList.add('selected', 'balade');
+    const cfg = TYPE_CONFIG['Animaux'];
+    document.getElementById('post-desc').placeholder = cfg.baladePlaceholder;
     checkPublishReady();
   };
 
@@ -1471,8 +1551,16 @@ function renderNewPost() {
     opt.classList.add('selected');
 
     const isEvenement = cat === 'Événements';
+    const isAnimaux   = cat === 'Animaux';
     document.getElementById('type-selector-wrap').classList.toggle('hidden', isEvenement);
     document.getElementById('type-evenement').classList.toggle('hidden', !isEvenement);
+    document.getElementById('type-balade').classList.toggle('hidden', !isAnimaux);
+
+    // Reset balade selection when switching away from Animaux
+    if (!isAnimaux && postState.type === 'balade') {
+      postState.type = null;
+      document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre', 'balade'));
+    }
 
     const textarea      = document.getElementById('post-desc');
     const expiresInput  = document.getElementById('post-expires');
@@ -1490,7 +1578,7 @@ function renderNewPost() {
       document.getElementById('expires-group').classList.add('expires-required');
     } else {
       postState.type = null;
-      document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre'));
+      document.querySelectorAll('.post-type-option').forEach(el => el.classList.remove('selected', 'besoin', 'offre', 'balade'));
       applyTypeConfig(cat);
       expiresInput.required = false;
       expiresOptional.style.display = '';
@@ -1504,7 +1592,15 @@ function renderNewPost() {
 
   // Char count
   document.getElementById('post-desc').addEventListener('input', e => {
-    document.getElementById('char-count').textContent = `${e.target.value.length} / 300`;
+    const len = e.target.value.length;
+    const el = document.getElementById('char-count');
+    if (len < 10) {
+      el.textContent = `Minimum 10 caractères (${len}/300)`;
+      el.className = 'char-count char-error';
+    } else {
+      el.textContent = `${len} / 300`;
+      el.className = 'char-count char-ok';
+    }
     checkPublishReady();
   });
 
@@ -1543,6 +1639,48 @@ function renderNewPost() {
       const auto = new Date();
       auto.setDate(auto.getDate() + 14);
       insertData.expires_at = auto.toISOString();
+    }
+
+    // Duplicate event detection
+    if (postState.categorie === 'Événements') {
+      const words = desc.split(/\s+/).filter(w => w.length >= 4);
+      if (words.length > 0) {
+        const orFilters = words.slice(0, 3).map(w => `description.ilike.%${w}%`).join(',');
+        const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: dupes } = await db.from('posts')
+          .select('id, description, expires_at')
+          .eq('categorie', 'Événements')
+          .eq('quartier', state.profile.quartier)
+          .eq('is_resolved', false)
+          .gt('created_at', cutoff)
+          .or(orFilters)
+          .limit(1);
+
+        if (dupes && dupes.length > 0) {
+          const dupe = dupes[0];
+          const dupeDesc = dupe.description.length > 80 ? dupe.description.slice(0, 80) + '…' : dupe.description;
+          openModal(`
+            <div class="modal-title">Un événement similaire existe déjà</div>
+            <div class="modal-body" style="margin-bottom:16px">
+              <div style="background:var(--bg);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5">"${esc(dupeDesc)}"</div>
+              Voulez-vous quand même publier votre événement ?
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="btn btn-secondary" id="btn-dupe-confirm">Publier quand même</button>
+              <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+            </div>`);
+          document.getElementById('btn-dupe-confirm').onclick = async () => {
+            closeModal();
+            showLoading(btn, true);
+            const { error } = await db.from('posts').insert(insertData);
+            showLoading(btn, false);
+            if (error) { errEl.textContent = 'Erreur lors de la publication. Réessayez.'; return; }
+            showToast('Publication envoyée 🎉');
+            navigate('feed');
+          };
+          return;
+        }
+      }
     }
 
     showLoading(btn, true);
@@ -2260,7 +2398,7 @@ async function renderProfile(userId) {
           <div class="section-title">Publications (${posts.length})</div>
           ${posts.slice(0, 10).map(p => `
             <div class="mini-post-card">
-              <div class="mini-post-type ${p.type}">${getCatIcon(p.categorie)} ${p.type === 'besoin' ? 'Besoin' : 'Offre'} · ${esc(p.categorie)} ${p.is_resolved ? '✓' : ''}</div>
+              <div class="mini-post-type ${p.type}">${getCatIcon(p.categorie)} ${p.type === 'besoin' ? 'Besoin' : p.type === 'balade' ? 'Balade' : 'Offre'} · ${esc(p.categorie)} ${p.is_resolved ? '✓' : ''}</div>
               <div class="mini-post-desc">${esc(p.description)}</div>
               <div class="mini-post-meta">${formatRelTime(p.created_at)}</div>
             </div>`).join('')}

@@ -512,6 +512,7 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 }
 .post-type-badge.besoin { background: rgba(13,43,30,0.07); color: var(--ink); border: 1px solid rgba(13,43,30,0.18); }
 .post-type-badge.offre { background: var(--ink); color: var(--white); }
+.post-type-badge.balade { background: #E8834A; color: var(--white); }
 .post-type-badge.evenement { background: #1B4332; color: var(--white); letter-spacing: 0.1em; }
 .post-category-icon { font-size: 12px; }
 .post-event-date {
@@ -577,6 +578,9 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .post-type-option.selected.offre  { border-color: var(--ink); background: var(--ink); }
 .post-type-option.selected.offre .post-type-option-label,
 .post-type-option.selected.offre .post-type-option-desc { color: var(--white); }
+.post-type-option.selected.balade { border-color: #E8834A; background: #E8834A; }
+.post-type-option.selected.balade .post-type-option-label,
+.post-type-option.selected.balade .post-type-option-desc { color: var(--white); }
 .post-type-option-icon { font-size: 26px; margin-bottom: 8px; }
 .post-type-option-label { font-size: 12px; font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: 0.06em; }
 .post-type-option-desc { font-size: 11px; color: var(--muted); font-weight: 500; margin-top: 3px; }
@@ -623,6 +627,8 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .category-option-note { font-size: 9px; color: rgba(13,43,30,0.35); display: block; margin-top: 3px; font-style: italic; line-height: 1.3; }
 .category-option.selected .category-option-note { color: rgba(255,255,255,0.5); }
 .char-count { font-size: 12px; color: rgba(13,43,30,0.3); text-align: right; margin-top: 4px; }
+.char-count.char-error { color: #EF4444; font-weight: 600; }
+.char-count.char-ok { color: var(--green); font-weight: 600; }
 
 /* ===== MESSAGES VIEW ===== */
 .messages-screen { padding-bottom: 16px; }
@@ -859,6 +865,50 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   font-size: 13px; color: var(--muted); line-height: 1.5; font-weight: 500;
 }
 
+/* ===== ONBOARDING STEPPER + PHOTO ===== */
+.ob-stepper {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; margin-bottom: 20px;
+}
+.ob-step { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.ob-step-circle {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+}
+.ob-step-done .ob-step-circle { background: var(--green); color: #fff; }
+.ob-step-active .ob-step-circle { background: var(--ink); color: #fff; }
+.ob-step-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.ob-step-done .ob-step-label { color: var(--green); }
+.ob-step-active .ob-step-label { color: var(--ink); }
+.ob-step-connector { width: 40px; height: 2px; background: var(--green); margin: 0 8px 16px; }
+
+.ob-welcome-msg {
+  background: #D8F3DC; border-radius: var(--radius-sm);
+  padding: 12px 16px; margin-bottom: 24px;
+  font-size: 13px; font-weight: 600; color: #1B4332; line-height: 1.55;
+}
+
+.ob-photo-section {
+  display: flex; justify-content: center; margin-bottom: 28px;
+}
+.ob-avatar-label {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  cursor: pointer;
+}
+.ob-avatar-circle {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: #F3F4F6; border: 2.5px dashed #D1D5DB;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; transition: border-color 0.15s;
+}
+.ob-avatar-label:hover .ob-avatar-circle { border-color: var(--green); }
+.ob-avatar-circle img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.ob-avatar-hint {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 700; color: var(--green);
+}
+
 /* ===== PLEDGE CHECKBOX (onboarding) ===== */
 .ob-pledge-label {
   display: flex; align-items: flex-start; gap: 12px;
@@ -961,6 +1011,7 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .mini-post-type { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
 .mini-post-type.besoin { color: var(--muted); }
 .mini-post-type.offre { color: var(--ink); }
+.mini-post-type.balade { color: #E8834A; }
 .mini-post-desc { font-size: 14px; line-height: 1.5; color: var(--ink); font-weight: 500; }
 .mini-post-meta { font-size: 12px; color: var(--muted); margin-top: 6px; }
 
