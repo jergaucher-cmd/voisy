@@ -3734,10 +3734,12 @@ async function adminResolveAlert(alertId) {
 
 async function adminValidateVerif(verifId, type, userId) {
   if (!userId) return;
+  const { error } = await db.from('verification_requests')
+    .update({ status: 'approved' }).eq('id', verifId);
+  if (error) { showToast('Erreur : impossible de valider (' + error.message + ')', 'error'); return; }
   if (type === 'photo') {
     await db.from('profiles').update({ photo_verified: true }).eq('id', userId);
   }
-  await db.from('verification_requests').delete().eq('id', verifId);
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast('Photo vérifiée ✓');
@@ -3839,7 +3841,9 @@ async function adminReplySupportMessage(msgId, userId) {
 }
 
 async function adminRejectVerif(verifId) {
-  await db.from('verification_requests').delete().eq('id', verifId);
+  const { error } = await db.from('verification_requests')
+    .update({ status: 'rejected' }).eq('id', verifId);
+  if (error) { showToast('Erreur : impossible de rejeter (' + error.message + ')', 'error'); return; }
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast('Demande rejetée.');
