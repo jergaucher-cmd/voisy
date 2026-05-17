@@ -923,19 +923,57 @@ function renderOnboarding() {
   });
 }
 
+function compressImage(file, targetMB = 2) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1920;
+      let { width, height } = img;
+      if (width > MAX || height > MAX) {
+        if (width >= height) { height = Math.round(height * MAX / width); width = MAX; }
+        else { width = Math.round(width * MAX / height); height = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const targetBytes = targetMB * 1024 * 1024;
+      const qualities = [0.85, 0.75, 0.65, 0.55, 0.45];
+      let idx = 0;
+      const tryNext = q => canvas.toBlob(blob => {
+        if (!blob) { resolve(null); return; }
+        if (blob.size <= targetBytes || idx >= qualities.length - 1) {
+          resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }));
+        } else { idx++; tryNext(qualities[idx]); }
+      }, 'image/jpeg', q);
+      tryNext(qualities[0]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 async function handleOnboardingAvatarUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { showToast('Image trop lourde (max 2 Mo).', 'error'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Image trop lourde (max 10 Mo).', 'error'); return; }
 
   const label = document.querySelector('label[for="ob-avatar-upload"]');
   if (label) label.style.opacity = '0.6';
-  showToast('Envoi de la photo…', 'info');
 
-  const ext  = file.name.split('.').pop();
+  let uploadFile = file;
+  let ext = file.name.split('.').pop().toLowerCase();
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('Compression de la photo…', 'info');
+    const compressed = await compressImage(file);
+    if (compressed) { uploadFile = compressed; ext = 'jpg'; }
+  }
+
+  showToast('Envoi de la photo…', 'info');
   const path = `${state.user.id}/avatar.${ext}`;
 
-  const { error: uploadErr } = await db.storage.from('avatars').upload(path, file, { upsert: true });
+  const { error: uploadErr } = await db.storage.from('avatars').upload(path, uploadFile, { upsert: true });
   if (label) label.style.opacity = '';
   if (uploadErr) { showToast('Erreur lors de l\'upload.', 'error'); return; }
 
@@ -2756,13 +2794,20 @@ async function renderProfile(userId) {
 async function handleAvatarUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { showToast('Image trop lourde (max 2 Mo).', 'error'); return; }
+  if (file.size > 10 * 1024 * 1024) { showToast('Image trop lourde (max 10 Mo).', 'error'); return; }
+
+  let uploadFile = file;
+  let ext = file.name.split('.').pop().toLowerCase();
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('Compression de la photo…', 'info');
+    const compressed = await compressImage(file);
+    if (compressed) { uploadFile = compressed; ext = 'jpg'; }
+  }
 
   showToast('Envoi de la photo…', 'info');
-  const ext  = file.name.split('.').pop();
   const path = `${state.user.id}/avatar.${ext}`;
 
-  const { error: uploadErr } = await db.storage.from('avatars').upload(path, file, { upsert: true });
+  const { error: uploadErr } = await db.storage.from('avatars').upload(path, uploadFile, { upsert: true });
   if (uploadErr) { showToast('Erreur lors de l\'upload.', 'error'); return; }
 
   const { data: { publicUrl } } = db.storage.from('avatars').getPublicUrl(path);

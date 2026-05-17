@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Voisy",
+    "slug": "voisy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#2D6A4F",
+    "splash": {
+      "backgroundColor": "#2D6A4F",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "eu.voisy.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Voisy utilise l'appareil photo pour votre photo de profil.",
+        "NSPhotoLibraryUsageDescription": "Voisy accède à vos photos pour votre photo de profil."
+      }
+    },
+    "android": {
+      "package": "eu.voisy.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#2D6A4F"
+      }
+    },
+    "plugins": [
+      "expo-constants"
+    ]
+  }
+}
