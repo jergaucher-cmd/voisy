@@ -3523,7 +3523,7 @@ async function init() {
       await loadCurrentProfile();
       if (!state.profile?.presence_status) {
         navigate('onboarding');
-      } else if (['login', 'register', 'landing'].includes(state.view)) {
+      } else {
         navigate('feed');
         refreshUnreadCount();
         refreshNotifCount();
