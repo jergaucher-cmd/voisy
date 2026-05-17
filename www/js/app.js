@@ -348,7 +348,7 @@ function openPhotoVerifSheet() {
       Cette photo ne sera jamais publiée — elle est uniquement utilisée par notre
       équipe pour confirmer votre identité.
     </p>
-    <input type="file" id="verif-file-input" accept="image/*" capture="user" style="display:none">
+    <input type="file" id="verif-file-input" accept="image/*" style="display:none">
     <div id="verif-preview-wrap" style="display:none;margin-bottom:16px;text-align:center">
       <img id="verif-preview-img" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:2px solid var(--green)">
     </div>
@@ -415,26 +415,20 @@ function openPhotoVerifSheet() {
       return;
     }
 
-    // URL signée valable 7 jours pour l'email admin
-    const { data: signed } = await db.storage
-      .from('verifications')
-      .createSignedUrl(path, 60 * 60 * 24 * 7);
-    const verifPhotoUrl = signed?.signedUrl || '';
-
     // Enregistrement de la demande
     await db.from('verification_requests')
       .insert({ user_id: state.user.id, type: 'photo', status: 'pending', verif_photo_path: path });
 
-    // Notification email admin avec les deux photos
+    // La Edge Function génère l'URL signée côté serveur (service role, bypass RLS)
     db.functions.invoke('send-admin-notification', {
       body: {
-        type:          'photo_verif',
-        user_id:       state.user.id,
-        prenom:        state.profile?.prenom,
-        last_name:     state.profile?.last_name,
-        email:         state.user.email,
-        profile_photo: state.profile?.photo_url || '',
-        verif_photo:   verifPhotoUrl,
+        type:             'photo_verif',
+        user_id:          state.user.id,
+        prenom:           state.profile?.prenom,
+        last_name:        state.profile?.last_name,
+        email:            state.user.email,
+        profile_photo:    state.profile?.photo_url || '',
+        verif_photo_path: path,
       },
     }).catch(() => {});
 

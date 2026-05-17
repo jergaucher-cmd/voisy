@@ -1,4 +1,8 @@
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const RESEND_API_KEY   = Deno.env.get('RESEND_API_KEY')!;
+const SUPABASE_URL     = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const SUPABASE_PROJECT = 'sygbpqxzxhppxqjlomnk';
 
 const corsHeaders = {
@@ -16,39 +20,61 @@ Deno.serve(async (req) => {
     last_name,
     email,
     phone,
-    profile_photo,   // URL publique photo de profil
-    verif_photo,     // URL signée photo de vérification (bucket privé)
+    profile_photo,    // URL publique de la photo de profil actuelle
+    verif_photo_path, // Chemin dans le bucket privé 'verifications'
   } = await req.json();
+
+  // ── Génération de l'URL signée côté serveur (service role → bypass RLS) ──
+  let verifPhotoUrl = '';
+  if (type === 'photo_verif' && verif_photo_path) {
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    const { data } = await admin.storage
+      .from('verifications')
+      .createSignedUrl(verif_photo_path, 60 * 60 * 24 * 7); // 7 jours
+    verifPhotoUrl = data?.signedUrl ?? '';
+  }
 
   const dashLink  = `https://supabase.com/dashboard/project/${SUPABASE_PROJECT}/auth/users`;
   const tableLink = `https://supabase.com/dashboard/project/${SUPABASE_PROJECT}/editor?filter=id%3Aeq%3A${user_id}`;
 
   // ── Bloc comparaison photos (photo_verif uniquement) ──────────────────────
-  const photoCompareBlock = (type === 'photo_verif' && (profile_photo || verif_photo)) ? `
+  const photoCompareBlock = type === 'photo_verif' ? `
     <tr>
       <td style="padding:0 28px 24px;">
-        <p style="font-size:13px;font-weight:700;color:#374151;margin:0 0 12px;text-transform:uppercase;letter-spacing:0.06em;">
+        <p style="font-size:13px;font-weight:700;color:#374151;margin:0 0 16px;
+                  text-transform:uppercase;letter-spacing:0.06em;border-top:1px solid #E5E7EB;padding-top:20px;">
           Comparaison des photos
         </p>
         <table width="100%" cellpadding="0" cellspacing="0">
           <tr>
-            <td width="48%" style="text-align:center;">
-              <p style="font-size:11px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">Photo de profil</p>
-              ${profile_photo
-                ? `<img src="${profile_photo}" width="160" height="160"
-                     style="border-radius:12px;object-fit:cover;border:2px solid #E5E7EB;display:block;margin:0 auto;">`
-                : `<div style="width:160px;height:160px;background:#F3F4F6;border-radius:12px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:#9CA3AF;font-size:12px;">—</div>`}
+            <td width="48%" style="text-align:center;vertical-align:top;">
+              <div style="background:#F3F4F6;border-radius:8px;padding:10px 8px 12px;">
+                <p style="font-size:10px;color:#6B7280;font-weight:800;text-transform:uppercase;
+                          letter-spacing:0.10em;margin:0 0 10px;">📷 Photo de profil</p>
+                ${profile_photo
+                  ? `<img src="${profile_photo}" width="150" height="150"
+                       style="border-radius:10px;object-fit:cover;border:2px solid #D1D5DB;
+                              display:block;margin:0 auto;">`
+                  : `<div style="width:150px;height:150px;background:#E5E7EB;border-radius:10px;
+                                 margin:0 auto;line-height:150px;color:#9CA3AF;font-size:12px;text-align:center;">—</div>`}
+              </div>
             </td>
             <td width="4%"></td>
-            <td width="48%" style="text-align:center;">
-              <p style="font-size:11px;color:#6B7280;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin:0 0 8px;">Photo de vérification</p>
-              ${verif_photo
-                ? `<a href="${verif_photo}" style="display:block;margin:0 auto;width:160px;">
-                     <img src="${verif_photo}" width="160" height="160"
-                       style="border-radius:12px;object-fit:cover;border:2px solid #2D6A4F;display:block;">
-                   </a>
-                   <p style="font-size:10px;color:#9CA3AF;margin:6px 0 0;">Cliquer pour agrandir</p>`
-                : `<div style="width:160px;height:160px;background:#F3F4F6;border-radius:12px;margin:0 auto;"></div>`}
+            <td width="48%" style="text-align:center;vertical-align:top;">
+              <div style="background:#F0FDF4;border-radius:8px;padding:10px 8px 12px;border:1px solid #BBF7D0;">
+                <p style="font-size:10px;color:#065F46;font-weight:800;text-transform:uppercase;
+                          letter-spacing:0.10em;margin:0 0 10px;">🤳 Photo de vérification</p>
+                ${verifPhotoUrl
+                  ? `<a href="${verifPhotoUrl}" target="_blank" style="display:block;margin:0 auto;width:150px;">
+                       <img src="${verifPhotoUrl}" width="150" height="150"
+                         style="border-radius:10px;object-fit:cover;border:2px solid #2D6A4F;display:block;">
+                     </a>
+                     <p style="font-size:10px;color:#6B7280;margin:8px 0 0;">↑ Cliquer pour agrandir</p>`
+                  : `<div style="width:150px;height:150px;background:#E5E7EB;border-radius:10px;
+                                 margin:0 auto;line-height:150px;color:#9CA3AF;font-size:11px;text-align:center;">
+                       Non disponible
+                     </div>`}
+              </div>
             </td>
           </tr>
         </table>
@@ -56,10 +82,8 @@ Deno.serve(async (req) => {
     </tr>` : '';
 
   const typeLabel = type === 'photo_verif'
-    ? '📷 Vérification d\'identité (selfie auriculaire)'
-    : type === 'photo'
-    ? '📷 Photo de profil'
-    : '📱 Numéro de téléphone';
+    ? '🤳 Vérification d\'identité — selfie auriculaire'
+    : '📷 Photo de profil';
 
   const html = `<!DOCTYPE html>
 <html lang="fr">
@@ -79,41 +103,52 @@ Deno.serve(async (req) => {
         <tr>
           <td style="padding:28px 28px 20px;">
             <p style="font-size:15px;font-weight:700;color:#1A1A1A;margin:0 0 20px;">
-              ${typeLabel} — vérification demandée
+              ${typeLabel}
             </p>
 
-            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+            <table width="100%" cellpadding="0" cellspacing="0"
+                   style="border:1px solid #E5E7EB;border-radius:8px;overflow:hidden;margin-bottom:24px;">
               <tr style="background:#F9FAFB;">
-                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;width:120px;">Prénom</td>
+                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;
+                           text-transform:uppercase;letter-spacing:0.06em;width:120px;">Prénom</td>
                 <td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1A1A1A;">${prenom || '—'}</td>
               </tr>
               <tr style="border-top:1px solid #E5E7EB;">
-                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Nom</td>
+                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;
+                           text-transform:uppercase;letter-spacing:0.06em;">Nom</td>
                 <td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1A1A1A;">${last_name || '—'}</td>
               </tr>
               <tr style="border-top:1px solid #E5E7EB;background:#F9FAFB;">
-                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Email</td>
+                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;
+                           text-transform:uppercase;letter-spacing:0.06em;">Email</td>
                 <td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1A1A1A;">${email || '—'}</td>
               </tr>
               ${phone ? `<tr style="border-top:1px solid #E5E7EB;">
-                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">Téléphone</td>
+                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;
+                           text-transform:uppercase;letter-spacing:0.06em;">Téléphone</td>
                 <td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1A1A1A;">${phone}</td>
               </tr>` : ''}
               <tr style="border-top:1px solid #E5E7EB;background:#F9FAFB;">
-                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;text-transform:uppercase;letter-spacing:0.06em;">User ID</td>
+                <td style="padding:10px 14px;font-size:12px;font-weight:700;color:#6B7280;
+                           text-transform:uppercase;letter-spacing:0.06em;">User ID</td>
                 <td style="padding:10px 14px;font-size:12px;font-weight:500;color:#6B7280;word-break:break-all;">${user_id}</td>
               </tr>
             </table>
 
-            <table cellpadding="0" cellspacing="0" style="margin-bottom:4px;">
+            <table cellpadding="0" cellspacing="0">
               <tr>
                 <td style="padding-right:10px;">
-                  <a href="${dashLink}" style="display:inline-block;background:#2D6A4F;color:white;font-size:13px;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:8px;">
+                  <a href="${dashLink}"
+                     style="display:inline-block;background:#2D6A4F;color:white;font-size:13px;
+                            font-weight:700;text-decoration:none;padding:10px 20px;border-radius:8px;">
                     → Auth Users
                   </a>
                 </td>
                 <td>
-                  <a href="${tableLink}" style="display:inline-block;background:#F3F4F6;color:#1A1A1A;font-size:13px;font-weight:700;text-decoration:none;padding:10px 20px;border-radius:8px;border:1px solid #E5E7EB;">
+                  <a href="${tableLink}"
+                     style="display:inline-block;background:#F3F4F6;color:#1A1A1A;font-size:13px;
+                            font-weight:700;text-decoration:none;padding:10px 20px;border-radius:8px;
+                            border:1px solid #E5E7EB;">
                     → Table Editor
                   </a>
                 </td>
@@ -143,8 +178,8 @@ Deno.serve(async (req) => {
     headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       from: 'Voisy <contact@voisy.eu>',
-      to: ['contact@voisy.eu'],
-      subject: `Nouvelle demande de vérification Voisy — ${prenom || email || user_id}`,
+      to:   ['contact@voisy.eu'],
+      subject: `Vérification photo Voisy — ${prenom || email || user_id}`,
       html,
     }),
   });
