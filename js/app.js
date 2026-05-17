@@ -902,6 +902,14 @@ async function handleRegister() {
   }
 
   navigate('verify', { email });
+
+  // Si Supabase connecte l'utilisateur directement sans confirmation email,
+  // forcer le rechargement si l'onboarding n'apparaît pas dans les 2 secondes
+  if (data.session) {
+    setTimeout(() => {
+      if (!['feed', 'onboarding'].includes(state.view)) window.location.reload();
+    }, 2000);
+  }
 }
 
 function renderVerify(email) {
@@ -3519,7 +3527,7 @@ async function init() {
   db.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
       const reloadFallback = setTimeout(() => {
-        if (state.view !== 'feed') window.location.reload();
+        if (!['feed', 'onboarding'].includes(state.view)) window.location.reload();
       }, 2000);
       state.user = session.user;
       setupGlobalChannels(session.user.id);
