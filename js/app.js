@@ -3603,7 +3603,7 @@ async function renderAdmin() {
       .map(async v => {
         const { data } = await db.storage
           .from('verifications')
-          .createSignedUrl(v.verif_photo_path, 60 * 60 * 24); // 24h
+          .createSignedUrl(v.verif_photo_path, 3600);
         verifSignedUrls[v.id] = data?.signedUrl || '';
       })
   );
@@ -3682,7 +3682,7 @@ async function renderAdmin() {
                         <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Photo de vérification</div>
                         ${verifUrl
                           ? `<img src="${verifUrl}" class="admin-verif-photo" onclick="window.open('${verifUrl}')" title="Ouvrir">`
-                          : `<div class="admin-verif-photo" style="background:var(--bg-soft);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:11px;">Non disponible</div>`}
+                          : `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Aucune photo de vérification</div>`}
                       </div>
                     </div>`;
                   })() : ''}
