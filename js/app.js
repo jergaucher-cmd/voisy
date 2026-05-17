@@ -3518,13 +3518,18 @@ async function init() {
   // Auth state listener
   db.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
+      const reloadFallback = setTimeout(() => {
+        if (state.view !== 'feed') window.location.reload();
+      }, 2000);
       state.user = session.user;
       setupGlobalChannels(session.user.id);
       await loadCurrentProfile();
       if (!state.profile?.presence_status) {
+        clearTimeout(reloadFallback);
         navigate('onboarding');
       } else {
         navigate('feed');
+        clearTimeout(reloadFallback);
         refreshUnreadCount();
         refreshNotifCount();
         checkExpiryNotifs();
