@@ -337,6 +337,123 @@ function openModal(html) {
 
 function closeModal() { $modal.classList.add('hidden'); $modal.innerHTML = ''; }
 
+function openPhotoVerifSheet() {
+  openModal(`
+    <div class="modal-title">📷 Vérification de photo</div>
+    <p style="font-size:14px;color:var(--text);line-height:1.55;margin:0 0 10px">
+      Pour vérifier que votre photo est authentique, prenez un selfie en levant
+      l'auriculaire (petit doigt) de votre main gauche à côté de votre joue.
+    </p>
+    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 20px">
+      Cette photo ne sera jamais publiée — elle est uniquement utilisée par notre
+      équipe pour confirmer votre identité.
+    </p>
+    <input type="file" id="verif-file-input" accept="image/*" capture="user" style="display:none">
+    <div id="verif-preview-wrap" style="display:none;margin-bottom:16px;text-align:center">
+      <img id="verif-preview-img" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:2px solid var(--green)">
+    </div>
+    <button class="btn btn-outline" id="btn-take-verif" style="width:100%;margin-bottom:10px">
+      📸 Prendre ma photo de vérification
+    </button>
+    <button class="btn btn-primary" id="btn-send-verif" style="width:100%;margin-bottom:8px" disabled>
+      Envoyer pour vérification
+    </button>
+    <button class="btn btn-ghost" onclick="closeModal()" style="width:100%">Annuler</button>
+  `);
+
+  const fileInput  = document.getElementById('verif-file-input');
+  const takeBtn    = document.getElementById('btn-take-verif');
+  const sendBtn    = document.getElementById('btn-send-verif');
+  const previewWrap = document.getElementById('verif-preview-wrap');
+  const previewImg  = document.getElementById('verif-preview-img');
+
+  takeBtn.onclick = () => fileInput.click();
+
+  fileInput.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    previewImg.src = URL.createObjectURL(file);
+    previewWrap.style.display = 'block';
+    sendBtn.disabled = false;
+  };
+
+  sendBtn.onclick = async () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Vérification…';
+
+    // Déjà une demande en cours ?
+    const { data: existing } = await db.from('verification_requests')
+      .select('id').eq('user_id', state.user.id)
+      .eq('type', 'photo').eq('status', 'pending').maybeSingle();
+    if (existing) {
+      closeModal();
+      showToast('Une demande est déjà en cours de traitement.', 'info');
+      return;
+    }
+
+    // Compression si > 2 Mo
+    sendBtn.textContent = 'Envoi…';
+    let uploadFile = file;
+    let ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    if (file.size > 2 * 1024 * 1024) {
+      const compressed = await compressImage(file);
+      if (compressed) { uploadFile = compressed; ext = 'jpg'; }
+    }
+
+    // Upload dans le bucket privé 'verifications'
+    const path = `${state.user.id}/verif_${Date.now()}.${ext}`;
+    const { error: uploadErr } = await db.storage
+      .from('verifications')
+      .upload(path, uploadFile, { upsert: false });
+    if (uploadErr) {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Envoyer pour vérification';
+      showToast('Erreur lors de l\'upload.', 'error');
+      return;
+    }
+
+    // URL signée valable 7 jours pour l'email admin
+    const { data: signed } = await db.storage
+      .from('verifications')
+      .createSignedUrl(path, 60 * 60 * 24 * 7);
+    const verifPhotoUrl = signed?.signedUrl || '';
+
+    // Enregistrement de la demande
+    await db.from('verification_requests')
+      .insert({ user_id: state.user.id, type: 'photo', status: 'pending', verif_photo_path: path });
+
+    // Notification email admin avec les deux photos
+    db.functions.invoke('send-admin-notification', {
+      body: {
+        type:          'photo_verif',
+        user_id:       state.user.id,
+        prenom:        state.profile?.prenom,
+        last_name:     state.profile?.last_name,
+        email:         state.user.email,
+        profile_photo: state.profile?.photo_url || '',
+        verif_photo:   verifPhotoUrl,
+      },
+    }).catch(() => {});
+
+    // Message de confirmation dans le sheet
+    const sheet = document.querySelector('.modal-sheet');
+    if (sheet) {
+      sheet.innerHTML = `
+        <span class="modal-handle"></span>
+        <div class="modal-title" style="color:var(--green)">✓ Photo envoyée !</div>
+        <p style="font-size:14px;color:var(--text);line-height:1.55;margin:0 0 20px">
+          Photo de vérification envoyée ! Notre équipe la comparera à votre photo
+          de profil et vous répondra sous 24h.
+        </p>
+        <button class="btn btn-primary" onclick="closeModal()" style="width:100%">Fermer</button>
+      `;
+    }
+  };
+}
+
 function avatarHTML(profile, size = 'small') {
   const cls = size === 'large' ? 'profile-avatar-large' : (size === 'conv' ? 'conv-avatar' : 'post-avatar');
   if (profile?.photo_url) {
@@ -1581,8 +1698,8 @@ function openPostDetail(postId) {
   const energyBadge = profile.energy_type
     ? `<div class="profile-energy-badge energy-${esc(profile.energy_type)}" style="font-size:11px;padding:3px 10px;margin-top:4px;display:inline-flex">${energyLabel(profile.energy_type)}</div>`
     : '';
-  const vBadges = (profile.photo_verified || profile.phone_verified)
-    ? `<span style="font-size:11px;margin-left:4px">${profile.photo_verified ? '📷' : ''}${profile.phone_verified ? '📱' : ''}</span>`
+  const vBadges = profile.photo_verified
+    ? `<span style="font-size:11px;margin-left:4px">📷</span>`
     : '';
 
   openModal(`
@@ -2664,9 +2781,7 @@ async function renderProfile(userId) {
           <span class="trust-badge ${profile.photo_verified ? 'verified' : 'unverified'}">
             📷 Photo ${profile.photo_verified ? 'vérifiée ✓' : 'non vérifiée'}
           </span>
-          <span class="trust-badge ${profile.phone_verified ? 'verified' : 'unverified'}">
-            📱 Numéro ${profile.phone_verified ? 'vérifié ✓' : 'non vérifié'}
-          </span>
+          ${profile.phone ? `<span class="trust-badge verified">📱 Numéro renseigné</span>` : ''}
         </div>
         ${underReview ? `<div class="review-badge-profile">⚠️ Profil en cours d'examen</div>` : ''}
         ${ratingStats ? `<div class="profile-rating"><span class="stars-text">${starsDisplay(ratingStats.avg)}</span> <strong>${ratingStats.avg}</strong> · ${ratingStats.count} interaction${ratingStats.count > 1 ? 's' : ''}</div>` : ''}
@@ -3013,18 +3128,6 @@ async function renderEditProfile() {
           <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4">
             Notre équipe vérifiera votre photo sous 24h. Vous recevrez un email de confirmation.
           </p>` : ''}
-        <div class="verify-status ${p?.phone_verified ? 'ok' : 'nok'}" style="margin-top:12px">
-          ${p?.phone_verified
-            ? '📱 Numéro vérifié ✓'
-            : '📱 Numéro non vérifié'}
-        </div>
-        ${!p?.phone_verified ? `
-          <button class="btn btn-outline btn-sm" id="btn-req-phone" style="margin-top:8px">
-            Vérifier mon numéro
-          </button>
-          <p style="font-size:12px;color:var(--text-muted);margin-top:8px;line-height:1.4">
-            Enregistrez d'abord votre numéro ci-dessus, puis cliquez pour soumettre la demande.
-          </p>` : ''}
       </div>
 
       <div id="edit-error" class="form-error" style="margin-bottom:12px"></div>
@@ -3065,76 +3168,10 @@ async function renderEditProfile() {
 
   document.getElementById('edit-avatar-upload').onchange = handleAvatarUpload;
 
-  // Photo verification request
+  // Photo verification request → bottom sheet
   const btnReqPhoto = document.getElementById('btn-req-photo');
   if (btnReqPhoto) {
-    btnReqPhoto.onclick = async () => {
-      showLoading(btnReqPhoto, true);
-      const { data: existing } = await db.from('verification_requests')
-        .select('id').eq('user_id', state.user.id)
-        .eq('type', 'photo').eq('status', 'pending').maybeSingle();
-      if (existing) {
-        showLoading(btnReqPhoto, false);
-        showToast('Une demande est déjà en cours de traitement.', 'info');
-        return;
-      }
-      const { error } = await db.from('verification_requests')
-        .insert({ user_id: state.user.id, type: 'photo', status: 'pending' });
-      showLoading(btnReqPhoto, false);
-      if (error) { showToast('Erreur lors de la demande.', 'error'); return; }
-      btnReqPhoto.disabled = true;
-      btnReqPhoto.textContent = '✓ Demande envoyée';
-      showToast('Demande de vérification photo envoyée !');
-      db.functions.invoke('send-admin-notification', {
-        body: {
-          type: 'photo',
-          user_id:   state.user.id,
-          prenom:    state.profile?.prenom,
-          last_name: state.profile?.last_name,
-          email:     state.user.email,
-        },
-      }).catch(() => {});
-    };
-  }
-
-  // Phone verification request
-  const btnReqPhone = document.getElementById('btn-req-phone');
-  if (btnReqPhone) {
-    btnReqPhone.onclick = async () => {
-      const phoneVal = document.getElementById('edit-phone').value.trim();
-      if (!phoneVal) {
-        showToast('Renseignez d\'abord votre numéro de téléphone ci-dessus.', 'info');
-        return;
-      }
-      showLoading(btnReqPhone, true);
-      const { data: existing } = await db.from('verification_requests')
-        .select('id').eq('user_id', state.user.id)
-        .eq('type', 'phone').eq('status', 'pending').maybeSingle();
-      if (existing) {
-        showLoading(btnReqPhone, false);
-        showToast('Une demande est déjà en cours de traitement.', 'info');
-        return;
-      }
-      await db.from('profiles').update({ phone: phoneVal }).eq('id', state.user.id);
-      const { error } = await db.from('verification_requests')
-        .insert({ user_id: state.user.id, type: 'phone', status: 'pending' });
-      showLoading(btnReqPhone, false);
-      if (error) { showToast('Erreur lors de la demande.', 'error'); return; }
-      btnReqPhone.disabled = true;
-      btnReqPhone.textContent = '✓ Demande envoyée';
-      const hint = btnReqPhone.nextElementSibling;
-      if (hint) hint.textContent = 'Votre numéro a été enregistré. Notre équipe vous contactera pour confirmer votre identité sous 24h.';
-      db.functions.invoke('send-admin-notification', {
-        body: {
-          type: 'phone',
-          user_id:   state.user.id,
-          prenom:    state.profile?.prenom,
-          last_name: state.profile?.last_name,
-          email:     state.user.email,
-          phone:     phoneVal,
-        },
-      }).catch(() => {});
-    };
+    btnReqPhoto.onclick = () => openPhotoVerifSheet();
   }
 
   document.getElementById('btn-save-profile').onclick = async () => {
@@ -3519,7 +3556,7 @@ async function renderAdmin() {
 
   const reports  = reportsRes.data  || [];
   const alerts   = alertsRes.data   || [];
-  const verifs   = verifsRes.data   || [];
+  const verifs   = (verifsRes.data  || []).filter(v => v.type !== 'phone');
   const supports = supportRes.data  || [];
 
   const el = document.getElementById('admin-content');
