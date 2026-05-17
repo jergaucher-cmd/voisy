@@ -344,34 +344,50 @@ function openPhotoVerifSheet() {
       Pour vérifier que votre photo est authentique, prenez un selfie en levant
       l'auriculaire (petit doigt) de votre main gauche à côté de votre joue.
     </p>
-    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 20px">
+    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 16px">
       Cette photo ne sera jamais publiée — elle est uniquement utilisée par notre
       équipe pour confirmer votre identité.
     </p>
+
+    <label for="verif-file-input"
+           style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+                  border:1.5px dashed var(--border-mid);border-radius:12px;
+                  cursor:pointer;margin-bottom:14px;background:var(--card-bg);
+                  transition:border-color 0.15s">
+      <span style="font-size:20px">📎</span>
+      <span style="flex:1;min-width:0">
+        <span id="verif-file-name"
+              style="display:block;font-size:13px;font-weight:600;
+                     color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          Aucune photo sélectionnée
+        </span>
+        <span style="font-size:11px;color:var(--muted)">Cliquer pour choisir une photo</span>
+      </span>
+    </label>
     <input type="file" id="verif-file-input" accept="image/*" style="display:none">
-    <div id="verif-preview-wrap" style="display:none;margin-bottom:16px;text-align:center">
-      <img id="verif-preview-img" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:2px solid var(--green)">
+
+    <div id="verif-preview-wrap" style="display:none;margin-bottom:14px;text-align:center">
+      <img id="verif-preview-img"
+           style="max-width:100%;max-height:200px;border-radius:12px;
+                  object-fit:cover;border:2px solid var(--green)">
     </div>
-    <button class="btn btn-outline" id="btn-take-verif" style="width:100%;margin-bottom:10px">
-      📸 Prendre ma photo de vérification
-    </button>
     <button class="btn btn-primary" id="btn-send-verif" style="width:100%;margin-bottom:8px" disabled>
       Envoyer pour vérification
     </button>
     <button class="btn btn-ghost" onclick="closeModal()" style="width:100%">Annuler</button>
   `);
 
-  const fileInput  = document.getElementById('verif-file-input');
-  const takeBtn    = document.getElementById('btn-take-verif');
-  const sendBtn    = document.getElementById('btn-send-verif');
+  const fileInput   = document.getElementById('verif-file-input');
+  const fileNameEl  = document.getElementById('verif-file-name');
+  const sendBtn     = document.getElementById('btn-send-verif');
   const previewWrap = document.getElementById('verif-preview-wrap');
   const previewImg  = document.getElementById('verif-preview-img');
-
-  takeBtn.onclick = () => fileInput.click();
 
   fileInput.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
+    fileNameEl.textContent = file.name;
+    fileNameEl.style.color = 'var(--text)';
     previewImg.src = URL.createObjectURL(file);
     previewWrap.style.display = 'block';
     sendBtn.disabled = false;
@@ -3508,7 +3524,7 @@ async function loadAdminBadge() {
   const [r1, r2, r3] = await Promise.all([
     db.from('reports').select('id', { count: 'exact', head: true }).eq('resolved', false),
     db.from('admin_alerts').select('id', { count: 'exact', head: true }).eq('resolved', false),
-    db.from('verification_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    db.from('verification_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending').neq('type', 'phone'),
   ]);
   const total = (r1.count || 0) + (r2.count || 0) + (r3.count || 0);
   if (total > 0) {
@@ -3542,7 +3558,7 @@ async function renderAdmin() {
       .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
     db.from('verification_requests')
       .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
-      .eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
+      .eq('status', 'pending').neq('type', 'phone').order('created_at', { ascending: false }).limit(50),
     db.from('support_messages')
       .select('id, user_id, prenom, last_name, email, message, created_at, read')
       .eq('read', false).order('created_at', { ascending: false }).limit(50),
@@ -3550,7 +3566,7 @@ async function renderAdmin() {
 
   const reports  = reportsRes.data  || [];
   const alerts   = alertsRes.data   || [];
-  const verifs   = (verifsRes.data  || []).filter(v => v.type !== 'phone');
+  const verifs   = verifsRes.data   || [];
   const supports = supportRes.data  || [];
 
   const el = document.getElementById('admin-content');
@@ -3573,7 +3589,7 @@ async function renderAdmin() {
               ${r.target_type === 'post' ? `
                 <button class="admin-btn admin-btn-danger" onclick="adminDeletePost('${r.target_id}','${r.id}')">Supprimer</button>` : ''}
               <button class="admin-btn admin-btn-ghost" onclick="navigate('profile',{userId:'${r.target_id}'})">Voir</button>
-              ${r.target_type === 'profile' ? `<button class="admin-btn admin-btn-danger" onclick="adminBanUser('${r.target_id}')">Bannir</button>` : ''}
+              ${r.target_type === 'profile' ? `<button class="admin-btn admin-btn-danger" onclick="adminBanUser('${r.target_id}','${r.id}')">Bannir</button>` : ''}
               <button class="admin-btn admin-btn-muted" onclick="adminIgnoreReport('${r.id}')">Ignorer</button>
             </div>
           </div>`).join('')
@@ -3677,7 +3693,7 @@ function adminSectionHTML(icon, title, count, bodyHTML, countId) {
 async function adminIgnoreReport(reportId) {
   const row = document.getElementById(`adminrow-${reportId}`);
   if (row) row.style.opacity = '0.4';
-  await db.from('reports').update({ resolved: true }).eq('id', reportId);
+  await db.from('reports').delete().eq('id', reportId);
   if (row) row.remove();
 }
 
@@ -3698,12 +3714,13 @@ async function adminResolveAlert(alertId) {
 
 async function adminValidateVerif(verifId, type, userId) {
   if (!userId) return;
-  const field = type === 'photo' ? { photo_verified: true } : { phone_verified: true };
-  await db.from('profiles').update(field).eq('id', userId);
-  await db.from('verification_requests').update({ status: 'approved' }).eq('id', verifId);
+  if (type === 'photo') {
+    await db.from('profiles').update({ photo_verified: true }).eq('id', userId);
+  }
+  await db.from('verification_requests').delete().eq('id', verifId);
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
-  showToast(`${type === 'photo' ? 'Photo' : 'Téléphone'} validé.`);
+  showToast('Photo vérifiée ✓');
 }
 
 async function adminMarkSupportRead(msgId) {
@@ -3802,7 +3819,7 @@ async function adminReplySupportMessage(msgId, userId) {
 }
 
 async function adminRejectVerif(verifId) {
-  await db.from('verification_requests').update({ status: 'rejected' }).eq('id', verifId);
+  await db.from('verification_requests').delete().eq('id', verifId);
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast('Demande rejetée.');
@@ -3880,7 +3897,7 @@ async function loadAdminProfiles() {
 function adminNPPrev() { _adminNPPage = Math.max(0, _adminNPPage - 1); loadAdminProfiles(); }
 function adminNPNext(max) { _adminNPPage = Math.min(max - 1, _adminNPPage + 1); loadAdminProfiles(); }
 
-async function adminBanUser(userId) {
+async function adminBanUser(userId, reportId) {
   const { data: p } = await db.from('profiles')
     .select('prenom, email').eq('id', userId).single();
   const prenom = p?.prenom || 'cet utilisateur';
@@ -3895,13 +3912,13 @@ async function adminBanUser(userId) {
     db.functions.invoke('send-ban-email', { body: { prenom, email } }).catch(() => {});
   }
 
-  const row = document.getElementById(`adminrow-${userId}`);
-  if (row) {
-    const nameEl = row.querySelector('.admin-row-name');
-    if (nameEl) nameEl.innerHTML += ' <span class="admin-tag tag-post" style="margin-left:6px">Banni</span>';
-    const banBtn = row.querySelector('.admin-btn-danger');
-    if (banBtn) banBtn.remove();
+  // Supprimer le signalement associé s'il existe
+  if (reportId) {
+    await db.from('reports').delete().eq('id', reportId);
+    const reportRow = document.getElementById(`adminrow-${reportId}`);
+    if (reportRow) reportRow.remove();
   }
+
   showToast(`${prenom} a été banni.`);
 }
 
