@@ -449,13 +449,19 @@ function openPhotoVerifSheet() {
     let verifPath = '';
     if (!uploadErr) {
       verifPath = path;
-      await db.from('verification_requests')
+      const { error: updateErr } = await db.from('verification_requests')
         .update({ verif_photo_path: path }).eq('id', req.id);
+      if (updateErr) {
+        console.warn('[verif] update verif_photo_path échoué:', updateErr.message);
+      } else {
+        console.log('[verif] verif_photo_path mis à jour en base:', path);
+      }
     } else {
       console.warn('[verif] upload échoué:', uploadErr.message);
     }
 
     // 5. Email admin avec les deux photos
+    console.log('[verif] invocation Edge Function — verifPath:', verifPath);
     db.functions.invoke('send-admin-notification', {
       body: {
         type:             'photo_verif',
