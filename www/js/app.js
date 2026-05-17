@@ -344,34 +344,38 @@ function openPhotoVerifSheet() {
       Pour vérifier que votre photo est authentique, prenez un selfie en levant
       l'auriculaire (petit doigt) de votre main gauche à côté de votre joue.
     </p>
-    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 16px">
+    <p style="font-size:12px;color:var(--muted);line-height:1.5;margin:0 0 14px">
       Cette photo ne sera jamais publiée — elle est uniquement utilisée par notre
       équipe pour confirmer votre identité.
     </p>
 
-    <label for="verif-file-input"
+    <!-- Input DANS le label : fiable sur tous les navigateurs/WebViews -->
+    <label id="verif-upload-label"
            style="display:flex;align-items:center;gap:10px;padding:12px 14px;
                   border:1.5px dashed var(--border-mid);border-radius:12px;
-                  cursor:pointer;margin-bottom:14px;background:var(--card-bg);
-                  transition:border-color 0.15s">
-      <span style="font-size:20px">📎</span>
+                  cursor:pointer;margin-bottom:12px;background:var(--card-bg)">
+      <span style="font-size:20px;flex-shrink:0">📎</span>
       <span style="flex:1;min-width:0">
         <span id="verif-file-name"
-              style="display:block;font-size:13px;font-weight:600;
-                     color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              style="display:block;font-size:13px;font-weight:600;color:var(--muted);
+                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           Aucune photo sélectionnée
         </span>
-        <span style="font-size:11px;color:var(--muted)">Cliquer pour choisir une photo</span>
+        <span style="font-size:11px;color:var(--muted)">Appuyer pour choisir une photo</span>
       </span>
+      <input type="file" id="verif-file-input" accept="image/*"
+             style="position:absolute;width:1px;height:1px;opacity:0;overflow:hidden">
     </label>
-    <input type="file" id="verif-file-input" accept="image/*" style="display:none">
 
-    <div id="verif-preview-wrap" style="display:none;margin-bottom:14px;text-align:center">
+    <div id="verif-preview-wrap" style="display:none;margin-bottom:12px;text-align:center">
       <img id="verif-preview-img"
-           style="max-width:100%;max-height:200px;border-radius:12px;
+           style="max-width:100%;max-height:180px;border-radius:12px;
                   object-fit:cover;border:2px solid var(--green)">
     </div>
-    <button class="btn btn-primary" id="btn-send-verif" style="width:100%;margin-bottom:8px" disabled>
+    <div id="verif-error" style="display:none;font-size:12px;color:#DC2626;
+         background:#FEF2F2;border-radius:8px;padding:8px 12px;margin-bottom:10px"></div>
+    <button class="btn btn-primary" id="btn-send-verif"
+            style="width:100%;margin-bottom:8px" disabled>
       Envoyer pour vérification
     </button>
     <button class="btn btn-ghost" onclick="closeModal()" style="width:100%">Annuler</button>
@@ -382,10 +386,17 @@ function openPhotoVerifSheet() {
   const sendBtn     = document.getElementById('btn-send-verif');
   const previewWrap = document.getElementById('verif-preview-wrap');
   const previewImg  = document.getElementById('verif-preview-img');
+  const errorEl     = document.getElementById('verif-error');
+
+  function showVerifError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = 'block';
+  }
 
   fileInput.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
+    errorEl.style.display = 'none';
     fileNameEl.textContent = file.name;
     fileNameEl.style.color = 'var(--text)';
     previewImg.src = URL.createObjectURL(file);
@@ -395,12 +406,12 @@ function openPhotoVerifSheet() {
 
   sendBtn.onclick = async () => {
     const file = fileInput.files[0];
-    if (!file) return;
+    if (!file) { showVerifError('Veuillez d\'abord sélectionner une photo.'); return; }
 
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Vérification…';
+    errorEl.style.display = 'none';
 
-    // Déjà une demande en cours ?
+    // 1. Vérifier doublon
     const { data: existing } = await db.from('verification_requests')
       .select('id').eq('user_id', state.user.id)
       .eq('type', 'photo').eq('status', 'pending').maybeSingle();
@@ -410,32 +421,41 @@ function openPhotoVerifSheet() {
       return;
     }
 
-    // Compression si > 2 Mo
+    // 2. INSERT en premier — admin voit la demande même si l'upload échoue
     sendBtn.textContent = 'Envoi…';
+    const { data: req, error: insertErr } = await db.from('verification_requests')
+      .insert({ user_id: state.user.id, type: 'photo', status: 'pending' })
+      .select('id').single();
+    if (insertErr) {
+      sendBtn.disabled = false;
+      sendBtn.textContent = 'Envoyer pour vérification';
+      showVerifError('Erreur lors de l\'envoi de la demande. Réessayez.');
+      console.error('[verif] insert error:', insertErr);
+      return;
+    }
+
+    // 3. Upload de la photo de vérification
     let uploadFile = file;
     let ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     if (file.size > 2 * 1024 * 1024) {
       const compressed = await compressImage(file);
       if (compressed) { uploadFile = compressed; ext = 'jpg'; }
     }
-
-    // Upload dans le bucket privé 'verifications'
     const path = `${state.user.id}/verif_${Date.now()}.${ext}`;
     const { error: uploadErr } = await db.storage
-      .from('verifications')
-      .upload(path, uploadFile, { upsert: false });
-    if (uploadErr) {
-      sendBtn.disabled = false;
-      sendBtn.textContent = 'Envoyer pour vérification';
-      showToast('Erreur lors de l\'upload.', 'error');
-      return;
+      .from('verifications').upload(path, uploadFile, { upsert: false });
+
+    // 4. Mettre à jour le chemin si upload OK (colonne optionnelle)
+    let verifPath = '';
+    if (!uploadErr) {
+      verifPath = path;
+      await db.from('verification_requests')
+        .update({ verif_photo_path: path }).eq('id', req.id);
+    } else {
+      console.warn('[verif] upload échoué:', uploadErr.message);
     }
 
-    // Enregistrement de la demande
-    await db.from('verification_requests')
-      .insert({ user_id: state.user.id, type: 'photo', status: 'pending', verif_photo_path: path });
-
-    // La Edge Function génère l'URL signée côté serveur (service role, bypass RLS)
+    // 5. Email admin avec les deux photos
     db.functions.invoke('send-admin-notification', {
       body: {
         type:             'photo_verif',
@@ -444,7 +464,7 @@ function openPhotoVerifSheet() {
         last_name:        state.profile?.last_name,
         email:            state.user.email,
         profile_photo:    state.profile?.photo_url || '',
-        verif_photo_path: path,
+        verif_photo_path: verifPath,
       },
     }).catch(() => {});
 
