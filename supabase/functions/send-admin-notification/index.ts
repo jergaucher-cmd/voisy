@@ -24,14 +24,30 @@ Deno.serve(async (req) => {
     verif_photo_path, // Chemin dans le bucket privé 'verifications'
   } = await req.json();
 
-  // ── Génération de l'URL signée côté serveur (service role → bypass RLS) ──
+  // ── Récupération de la photo de vérification via service role (bypass RLS) ──
   let verifPhotoUrl = '';
-  if (type === 'photo_verif' && verif_photo_path) {
+  if (type === 'photo_verif') {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-    const { data } = await admin.storage
-      .from('verifications')
-      .createSignedUrl(verif_photo_path, 60 * 60 * 24 * 7); // 7 jours
-    verifPhotoUrl = data?.signedUrl ?? '';
+
+    // Priorité 1 : chemin transmis par le client
+    let resolvedPath = verif_photo_path ?? '';
+
+    // Priorité 2 : si chemin absent ou invalide, on liste le dossier de l'utilisateur
+    //              et on prend le fichier le plus récent (tri lexicographique sur le nom)
+    if (!resolvedPath) {
+      const { data: files } = await admin.storage
+        .from('verifications')
+        .list(user_id, { limit: 20, sortBy: { column: 'name', order: 'desc' } });
+      const latest = files?.find(f => f.name !== '.emptyFolderPlaceholder');
+      if (latest) resolvedPath = `${user_id}/${latest.name}`;
+    }
+
+    if (resolvedPath) {
+      const { data } = await admin.storage
+        .from('verifications')
+        .createSignedUrl(resolvedPath, 60 * 60 * 24 * 7); // 7 jours
+      verifPhotoUrl = data?.signedUrl ?? '';
+    }
   }
 
   const dashLink  = `https://supabase.com/dashboard/project/${SUPABASE_PROJECT}/auth/users`;

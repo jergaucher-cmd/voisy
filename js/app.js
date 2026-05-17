@@ -3583,7 +3583,7 @@ async function renderAdmin() {
       .select('id, created_at, rating:rating_id(score, comment, rater:rater_id(prenom), rated:rated_id(id, prenom))')
       .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
     db.from('verification_requests')
-      .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
+      .select('id, type, created_at, verif_photo_path, profile:user_id(id, prenom, photo_url, phone)')
       .eq('status', 'pending').neq('type', 'phone').order('created_at', { ascending: false }).limit(50),
     db.from('support_messages')
       .select('id, user_id, prenom, last_name, email, message, created_at, read')
@@ -3594,6 +3594,19 @@ async function renderAdmin() {
   const alerts   = alertsRes.data   || [];
   const verifs   = verifsRes.data   || [];
   const supports = supportRes.data  || [];
+
+  // Génération des URLs signées pour les photos de vérification
+  const verifSignedUrls = {};
+  await Promise.all(
+    verifs
+      .filter(v => v.verif_photo_path)
+      .map(async v => {
+        const { data } = await db.storage
+          .from('verifications')
+          .createSignedUrl(v.verif_photo_path, 60 * 60 * 24); // 24h
+        verifSignedUrls[v.id] = data?.signedUrl || '';
+      })
+  );
 
   const el = document.getElementById('admin-content');
   if (!el) return;
@@ -3656,7 +3669,23 @@ async function renderAdmin() {
                     <span class="admin-tag ${v.type === 'photo' ? 'tag-photo' : 'tag-phone'}">${v.type === 'photo' ? '📷 Photo' : '📱 Téléphone'}</span>
                   </div>
                   <div class="admin-row-name">${esc(p.prenom || '?')}</div>
-                  ${v.type === 'photo' && p.photo_url ? `<img src="${esc(p.photo_url)}" class="admin-verif-photo" onclick="window.open('${esc(p.photo_url)}')">` : ''}
+                  ${v.type === 'photo' ? (() => {
+                    const verifUrl = verifSignedUrls[v.id] || '';
+                    return `<div style="display:flex;gap:10px;margin:10px 0;">
+                      <div style="flex:1;text-align:center;">
+                        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Photo de profil</div>
+                        ${p.photo_url
+                          ? `<img src="${esc(p.photo_url)}" class="admin-verif-photo" onclick="window.open('${esc(p.photo_url)}')" title="Ouvrir">`
+                          : `<div class="admin-verif-photo" style="background:var(--bg-soft);display:flex;align-items:center;justify-content:center;color:var(--text-muted);">—</div>`}
+                      </div>
+                      <div style="flex:1;text-align:center;">
+                        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Photo de vérification</div>
+                        ${verifUrl
+                          ? `<img src="${verifUrl}" class="admin-verif-photo" onclick="window.open('${verifUrl}')" title="Ouvrir">`
+                          : `<div class="admin-verif-photo" style="background:var(--bg-soft);display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:11px;">Non disponible</div>`}
+                      </div>
+                    </div>`;
+                  })() : ''}
                   ${v.type === 'phone' && p.phone ? `<div class="admin-row-meta">${esc(p.phone)}</div>` : ''}
                   <div class="admin-row-meta">${formatRelTime(v.created_at)}</div>
                 </div>
