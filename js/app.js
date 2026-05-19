@@ -474,6 +474,11 @@ function openPhotoVerifSheet() {
       },
     }).catch(() => {});
 
+    sendAdminPush(
+      'Vérification photo',
+      `${state.profile?.prenom || 'Un voisin'} a soumis une vérification d'identité`
+    );
+
     // Message de confirmation dans le sheet
     const sheet = document.querySelector('.modal-sheet');
     if (sheet) {
@@ -3292,6 +3297,10 @@ async function submitReport(type, targetId, reason) {
     target_id: targetId,
     reason
   });
+  sendAdminPush(
+    'Nouveau signalement',
+    `${type === 'post' ? 'Post' : 'Profil'} signalé : ${reason}`
+  );
   showToast('Signalement envoyé. Merci de contribuer à la sécurité de Voisy.');
 }
 
@@ -3523,6 +3532,30 @@ async function init() {
     navigate('landing');
   }
 
+  // ── OneSignal ──────────────────────────────────────────────────────────────
+  // Disponible uniquement dans l'app Capacitor iOS (pas sur navigateur web)
+  async function initOneSignal(userId) {
+    if (!window.Capacitor?.isNativePlatform?.()) return;
+    const OS = window.Capacitor?.Plugins?.OneSignal;
+    if (!OS) return;
+    try {
+      await OS.setAppId({ appId: 'REMPLACER_PAR_ONESIGNAL_APP_ID' });
+      await OS.requestPermission({});
+      if (userId) await OS.setExternalUserId({ externalUserId: userId });
+    } catch (e) {
+      console.warn('[OneSignal] init:', e);
+    }
+  }
+
+  // Envoie une push à l'admin via la Edge Function (fire-and-forget)
+  function sendAdminPush(title, message) {
+    db.functions.invoke('send-push-notification', {
+      body: { title, message },
+    }).catch(() => {});
+  }
+
+  if (session?.user) initOneSignal(session.user.id);
+
   // Auth state listener
   db.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
@@ -3531,6 +3564,7 @@ async function init() {
       }, 2000);
       state.user = session.user;
       setupGlobalChannels(session.user.id);
+      initOneSignal(session.user.id);
       await loadCurrentProfile();
       if (!state.profile?.presence_status) {
         clearTimeout(reloadFallback);

@@ -10,6 +10,11 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
   },
+  plugins: {
+    OneSignal: {
+      // L'App ID est passé à setAppId() en JS — pas besoin de le mettre ici
+    },
+  },
 };
 
 export default config;

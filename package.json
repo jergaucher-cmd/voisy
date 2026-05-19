@@ -4,7 +4,7 @@
   "description": "Application web mobile pour l'entraide entre voisins à Angers.",
   "main": "index.js",
   "scripts": {
-    "build": "mkdir -p www && cp index.html styles.css logo.svg www/ && cp -r js pages www/",
+    "build": "mkdir -p www && cp index.html styles.css logo.svg www/ && cp -r js pages public www/",
     "cap:sync": "npm run build && npx cap sync",
     "cap:open": "npx cap open ios"
   },
@@ -23,7 +23,8 @@
   "dependencies": {
     "@capacitor/cli": "^8.3.4",
     "@capacitor/core": "^8.3.4",
-    "@capacitor/ios": "^8.3.4"
+    "@capacitor/ios": "^8.3.4",
+    "onesignal-capacitor": "^5.1.1"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

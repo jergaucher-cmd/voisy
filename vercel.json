@@ -5,9 +5,11 @@
     { "src": "styles.css", "use": "@vercel/static" },
     { "src": "logo.svg", "use": "@vercel/static" },
     { "src": "js/**", "use": "@vercel/static" },
-    { "src": "pages/**", "use": "@vercel/static" }
+    { "src": "pages/**", "use": "@vercel/static" },
+    { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/OneSignalSDKWorker.js", "dest": "/public/OneSignalSDKWorker.js" },
     { "src": "/(.*)", "dest": "/$1" }
   ]
 }
