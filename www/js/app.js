@@ -146,11 +146,12 @@ function startWatchdog(containerSelector, ms) {
 }
 
 // ===== DOM =====
-const $app    = document.getElementById('app');
-const $nav    = document.getElementById('bottom-nav');
-const $loading= document.getElementById('loading-screen');
-const $badge  = document.getElementById('msg-badge');
-const $modal  = document.getElementById('modal-overlay');
+const $app     = document.getElementById('app');
+const $nav     = document.getElementById('bottom-nav');
+const $sidebar = document.getElementById('sidebar');
+const $loading = document.getElementById('loading-screen');
+const $badge   = document.getElementById('msg-badge');
+const $modal   = document.getElementById('modal-overlay');
 
 // ===== ROUTER =====
 const VIEW_ORDER = { feed: 0, 'new-post': 1, messages: 2, profile: 3 };
@@ -165,12 +166,17 @@ function navigate(view, params = {}) {
 
   if (isAuth) {
     $nav.classList.add('hidden');
+    if ($sidebar) $sidebar.classList.add('hidden');
+    document.body.classList.add('auth-view');
   } else {
     $nav.classList.remove('hidden');
+    if ($sidebar) $sidebar.classList.remove('hidden');
+    document.body.classList.remove('auth-view');
     updateNavActive(view);
   }
 
   window.scrollTo(0, 0);
+  $app.scrollTop = 0;
 
   switch(view) {
     case 'login':        renderLogin(); break;
@@ -2446,19 +2452,21 @@ function subscribeToMessages(convId) {
 }
 
 function updateMsgBadge(count) {
-  if (!$badge) return;
-  if (count > 0) {
-    const wasHidden = $badge.classList.contains('hidden');
-    $badge.textContent = count > 9 ? '9+' : count;
-    $badge.classList.remove('hidden');
-    if (wasHidden) {
-      $badge.classList.remove('badge-pop');
-      void $badge.offsetWidth; // force reflow pour relancer l'animation
-      $badge.classList.add('badge-pop');
+  [$badge, document.getElementById('msg-badge-side')].forEach($b => {
+    if (!$b) return;
+    if (count > 0) {
+      const wasHidden = $b.classList.contains('hidden');
+      $b.textContent = count > 9 ? '9+' : count;
+      $b.classList.remove('hidden');
+      if (wasHidden) {
+        $b.classList.remove('badge-pop');
+        void $b.offsetWidth;
+        $b.classList.add('badge-pop');
+      }
+    } else {
+      $b.classList.add('hidden');
     }
-  } else {
-    $badge.classList.add('hidden');
-  }
+  });
 }
 
 // ===== NOTIFICATIONS =====
@@ -3428,6 +3436,13 @@ function setupNav() {
     if (!btn || !btn.dataset.view) return;
     navigate(btn.dataset.view);
   });
+  if ($sidebar) {
+    $sidebar.addEventListener('click', e => {
+      const btn = e.target.closest('[data-view]');
+      if (!btn || !btn.dataset.view) return;
+      navigate(btn.dataset.view);
+    });
+  }
 }
 
 // ===== MODAL CLOSE ON OVERLAY CLICK =====
