@@ -474,10 +474,7 @@ function openPhotoVerifSheet() {
       },
     }).catch(() => {});
 
-    sendAdminPush(
-      'Vérification photo',
-      `${state.profile?.prenom || 'Un voisin'} a soumis une vérification d'identité`
-    );
+    sendAdminPush('Vérification photo', '📸 Photo de vérification à valider');
 
     // Message de confirmation dans le sheet
     const sheet = document.querySelector('.modal-sheet');
@@ -904,6 +901,7 @@ async function handleRegister() {
       age,
       trust_score: 0
     });
+    sendAdminPush('Nouvel inscrit', '👤 Nouvel inscrit sur Voisy');
   }
 
   navigate('verify', { email });
@@ -3298,8 +3296,8 @@ async function submitReport(type, targetId, reason) {
     reason
   });
   sendAdminPush(
-    'Nouveau signalement',
-    `${type === 'post' ? 'Post' : 'Profil'} signalé : ${reason}`
+    'Signalement',
+    `🚨 Signalement — ${type === 'post' ? 'post' : 'profil'}`
   );
   showToast('Signalement envoyé. Merci de contribuer à la sécurité de Voisy.');
 }

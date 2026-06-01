@@ -449,13 +449,19 @@ function openPhotoVerifSheet() {
     let verifPath = '';
     if (!uploadErr) {
       verifPath = path;
-      await db.from('verification_requests')
+      const { error: updateErr } = await db.from('verification_requests')
         .update({ verif_photo_path: path }).eq('id', req.id);
+      if (updateErr) {
+        console.warn('[verif] update verif_photo_path échoué:', updateErr.message);
+      } else {
+        console.log('[verif] verif_photo_path mis à jour en base:', path);
+      }
     } else {
       console.warn('[verif] upload échoué:', uploadErr.message);
     }
 
     // 5. Email admin avec les deux photos
+    console.log('[verif] invocation Edge Function — verifPath:', verifPath);
     db.functions.invoke('send-admin-notification', {
       body: {
         type:             'photo_verif',
@@ -467,6 +473,8 @@ function openPhotoVerifSheet() {
         verif_photo_path: verifPath,
       },
     }).catch(() => {});
+
+    sendAdminPush('Vérification photo', '📸 Photo de vérification à valider');
 
     // Message de confirmation dans le sheet
     const sheet = document.querySelector('.modal-sheet');
@@ -893,9 +901,18 @@ async function handleRegister() {
       age,
       trust_score: 0
     });
+    sendAdminPush('Nouvel inscrit', '👤 Nouvel inscrit sur Voisy');
   }
 
   navigate('verify', { email });
+
+  // Si Supabase connecte l'utilisateur directement sans confirmation email,
+  // forcer le rechargement si l'onboarding n'apparaît pas dans les 2 secondes
+  if (data.session) {
+    setTimeout(() => {
+      if (!['feed', 'onboarding'].includes(state.view)) window.location.reload();
+    }, 2000);
+  }
 }
 
 function renderVerify(email) {
@@ -3278,6 +3295,7 @@ async function submitReport(type, targetId, reason) {
     target_id: targetId,
     reason
   });
+  sendAdminPush('Signalement', `🚨 Signalement — ${type === 'post' ? 'post' : 'profil'}`);
   showToast('Signalement envoyé. Merci de contribuer à la sécurité de Voisy.');
 }
 
@@ -3512,13 +3530,18 @@ async function init() {
   // Auth state listener
   db.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
+      const reloadFallback = setTimeout(() => {
+        if (!['feed', 'onboarding'].includes(state.view)) window.location.reload();
+      }, 2000);
       state.user = session.user;
       setupGlobalChannels(session.user.id);
       await loadCurrentProfile();
       if (!state.profile?.presence_status) {
+        clearTimeout(reloadFallback);
         navigate('onboarding');
-      } else if (['login', 'register', 'landing'].includes(state.view)) {
+      } else {
         navigate('feed');
+        clearTimeout(reloadFallback);
         refreshUnreadCount();
         refreshNotifCount();
         checkExpiryNotifs();
@@ -3577,7 +3600,7 @@ async function renderAdmin() {
       .select('id, created_at, rating:rating_id(score, comment, rater:rater_id(prenom), rated:rated_id(id, prenom))')
       .eq('resolved', false).order('created_at', { ascending: false }).limit(50),
     db.from('verification_requests')
-      .select('id, type, created_at, profile:user_id(id, prenom, photo_url, phone)')
+      .select('id, type, created_at, verif_photo_path, profile:user_id(id, prenom, photo_url, phone)')
       .eq('status', 'pending').neq('type', 'phone').order('created_at', { ascending: false }).limit(50),
     db.from('support_messages')
       .select('id, user_id, prenom, last_name, email, message, created_at, read')
@@ -3588,6 +3611,19 @@ async function renderAdmin() {
   const alerts   = alertsRes.data   || [];
   const verifs   = verifsRes.data   || [];
   const supports = supportRes.data  || [];
+
+  // Génération des URLs signées pour les photos de vérification
+  const verifSignedUrls = {};
+  await Promise.all(
+    verifs
+      .filter(v => v.verif_photo_path)
+      .map(async v => {
+        const { data } = await db.storage
+          .from('verifications')
+          .createSignedUrl(v.verif_photo_path, 3600);
+        verifSignedUrls[v.id] = data?.signedUrl || '';
+      })
+  );
 
   const el = document.getElementById('admin-content');
   if (!el) return;
@@ -3650,7 +3686,23 @@ async function renderAdmin() {
                     <span class="admin-tag ${v.type === 'photo' ? 'tag-photo' : 'tag-phone'}">${v.type === 'photo' ? '📷 Photo' : '📱 Téléphone'}</span>
                   </div>
                   <div class="admin-row-name">${esc(p.prenom || '?')}</div>
-                  ${v.type === 'photo' && p.photo_url ? `<img src="${esc(p.photo_url)}" class="admin-verif-photo" onclick="window.open('${esc(p.photo_url)}')">` : ''}
+                  ${v.type === 'photo' ? (() => {
+                    const verifUrl = verifSignedUrls[v.id] || '';
+                    return `<div style="display:flex;gap:10px;margin:10px 0;">
+                      <div style="flex:1;text-align:center;">
+                        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Photo de profil</div>
+                        ${p.photo_url
+                          ? `<img src="${esc(p.photo_url)}" class="admin-verif-photo" onclick="window.open('${esc(p.photo_url)}')" title="Ouvrir">`
+                          : `<div class="admin-verif-photo" style="background:var(--bg-soft);display:flex;align-items:center;justify-content:center;color:var(--text-muted);">—</div>`}
+                      </div>
+                      <div style="flex:1;text-align:center;">
+                        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">Photo de vérification</div>
+                        ${verifUrl
+                          ? `<img src="${verifUrl}" class="admin-verif-photo" onclick="window.open('${verifUrl}')" title="Ouvrir">`
+                          : `<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">Aucune photo de vérification</div>`}
+                      </div>
+                    </div>`;
+                  })() : ''}
                   ${v.type === 'phone' && p.phone ? `<div class="admin-row-meta">${esc(p.phone)}</div>` : ''}
                   <div class="admin-row-meta">${formatRelTime(v.created_at)}</div>
                 </div>
@@ -3734,10 +3786,12 @@ async function adminResolveAlert(alertId) {
 
 async function adminValidateVerif(verifId, type, userId) {
   if (!userId) return;
+  const { error } = await db.from('verification_requests')
+    .update({ status: 'approved' }).eq('id', verifId);
+  if (error) { showToast('Erreur : impossible de valider (' + error.message + ')', 'error'); return; }
   if (type === 'photo') {
     await db.from('profiles').update({ photo_verified: true }).eq('id', userId);
   }
-  await db.from('verification_requests').delete().eq('id', verifId);
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast('Photo vérifiée ✓');
@@ -3839,7 +3893,9 @@ async function adminReplySupportMessage(msgId, userId) {
 }
 
 async function adminRejectVerif(verifId) {
-  await db.from('verification_requests').delete().eq('id', verifId);
+  const { error } = await db.from('verification_requests')
+    .update({ status: 'rejected' }).eq('id', verifId);
+  if (error) { showToast('Erreur : impossible de rejeter (' + error.message + ')', 'error'); return; }
   const row = document.getElementById(`adminrow-${verifId}`);
   if (row) row.remove();
   showToast('Demande rejetée.');
@@ -3995,6 +4051,12 @@ function showSupportModal() {
         </div>`;
     }
   };
+}
+
+function sendAdminPush(title, message) {
+  db.functions.invoke('send-push-notification', {
+    body: { title, message },
+  }).catch(() => {});
 }
 
 init();
