@@ -1756,6 +1756,14 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   #sidebar { display: flex; }
   #bottom-nav { display: none !important; }
 
+  /* Annule la contrainte 480px du mobile — #app doit être plein-écran sur desktop */
+  #app {
+    max-width: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    margin: 0 !important;
+  }
+
   /* Feed area shifted right of sidebar */
   body:not(.auth-view) #app {
     left: 260px;
@@ -1891,7 +1899,7 @@ input[type="datetime-local"].form-input { cursor: pointer; }
 .lp-trust-item { font-size: 13px; color: rgba(255,255,255,0.38); font-weight: 600; }
 
 /* Floating cards (hero right) */
-.lp-hero-visual { position: relative; height: 480px; }
+.lp-hero-visual { position: relative; height: 500px; overflow: hidden; }
 @keyframes lpFloat {
   0%, 100% { transform: translateY(0) rotate(var(--rot,0deg)); }
   50%       { transform: translateY(-14px) rotate(var(--rot,0deg)); }
@@ -1906,10 +1914,11 @@ input[type="datetime-local"].form-input { cursor: pointer; }
   border-radius: 14px; padding: 18px 20px;
   animation: lpFloat ease-in-out infinite;
 }
-.lp-fc-1 { top: 0;   left: 0;   --rot: -2deg; animation-duration: 8s;  animation-delay: 0s;  }
-.lp-fc-2 { top: 26%; right: 0;  --rot: 3deg;  animation-duration: 10s; animation-delay: -3s; }
-.lp-fc-3 { top: 52%; left: 24px; --rot: -1.5deg; animation-duration: 7s; animation-delay: -5s; }
-.lp-fc-4 { top: 12%; right: 20px; --rot: 5deg; animation-duration: 9s; animation-delay: -2s; }
+/* Cartes toutes positionnées en left pour rester dans leur colonne */
+.lp-fc-1 { top: 0;   left: 0;   --rot: -2deg;   animation-duration: 8s;  animation-delay: 0s;  }
+.lp-fc-2 { top: 26%; left: 38%; --rot: 3deg;    animation-duration: 10s; animation-delay: -3s; }
+.lp-fc-3 { top: 53%; left: 4%;  --rot: -1.5deg; animation-duration: 7s;  animation-delay: -5s; }
+.lp-fc-4 { top: 7%;  left: 48%; --rot: 5deg;    animation-duration: 9s;  animation-delay: -2s; }
 .lp-fc-badge {
   font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
   color: rgba(255,255,255,0.5); margin-bottom: 10px;
