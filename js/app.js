@@ -589,11 +589,83 @@ async function handleLogin() {
 }
 
 function renderLanding() {
-  if (window.innerWidth <= 768) {
-    navigate('login');
+  if (window.innerWidth > 768) {
+    renderDesktopLanding();
     return;
   }
-  renderDesktopLanding();
+
+  // Mobile : écran d'accueil Voisy avec logo + boutons
+  $app.innerHTML = `
+    <div class="landing-screen">
+
+      <div class="landing-bg" aria-hidden="true">
+        <div class="landing-card-wrap" style="top:4%;left:-8%;transform:rotate(-8deg)">
+          <div class="landing-card" style="animation-duration:9s;animation-delay:0s">
+            <div class="landing-card-badge">🤝 Entraide</div>
+            <div class="landing-card-text">Quelqu'un pour garder mon chat ce weekend ?</div>
+            <div class="landing-card-meta">📍 Belle-Beille</div>
+          </div>
+        </div>
+        <div class="landing-card-wrap" style="top:20%;right:-9%;transform:rotate(7deg)">
+          <div class="landing-card" style="animation-duration:12s;animation-delay:-4s">
+            <div class="landing-card-badge">🎭 Événements</div>
+            <div class="landing-card-text">Jazz live vendredi soir au Café Béatrice</div>
+            <div class="landing-card-meta">📍 Centre-ville</div>
+          </div>
+        </div>
+        <div class="landing-card-wrap" style="top:40%;left:-4%;transform:rotate(-5deg)">
+          <div class="landing-card" style="animation-duration:14s;animation-delay:-7s">
+            <div class="landing-card-badge">🏃 Sport</div>
+            <div class="landing-card-text">Running 7h du mat, qui vient ?</div>
+            <div class="landing-card-meta">📍 Lac de Maine</div>
+          </div>
+        </div>
+        <div class="landing-card-wrap" style="top:58%;right:-7%;transform:rotate(6deg)">
+          <div class="landing-card" style="animation-duration:10s;animation-delay:-2s">
+            <div class="landing-card-badge">📦 Objets</div>
+            <div class="landing-card-text">Je donne une étagère IKEA, parfait état</div>
+            <div class="landing-card-meta">📍 La Doutre</div>
+          </div>
+        </div>
+        <div class="landing-card-wrap" style="top:76%;left:1%;transform:rotate(-6deg)">
+          <div class="landing-card" style="animation-duration:11s;animation-delay:-9s">
+            <div class="landing-card-badge">☕ Sorties</div>
+            <div class="landing-card-text">Café et balade dimanche matin ?</div>
+            <div class="landing-card-meta">📍 Monplaisir</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="landing-overlay" aria-hidden="true"></div>
+
+      <div class="landing-content">
+        <div class="landing-logo-wrap">
+          <svg class="landing-voisy-svg" viewBox="0 0 360 92" xmlns="http://www.w3.org/2000/svg"
+               fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="0"   y1="10" x2="36"  y2="82" stroke-width="2.5"/>
+            <line x1="72"  y1="10" x2="36"  y2="82" stroke-width="2.5"/>
+            <ellipse cx="118" cy="46" rx="34" ry="36" stroke-width="2.5"/>
+            <line x1="170" y1="10" x2="170" y2="82" stroke-width="2.5"/>
+            <line x1="162" y1="10" x2="178" y2="10" stroke-width="0.7" stroke="rgba(255,255,255,0.5)"/>
+            <line x1="162" y1="82" x2="178" y2="82" stroke-width="0.7" stroke="rgba(255,255,255,0.5)"/>
+            <path d="M254,10 C192,10 254,82 192,82" stroke-width="2.5"/>
+            <line x1="265" y1="10" x2="312" y2="48" stroke-width="2.5"/>
+            <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
+            <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
+          </svg>
+          <div class="landing-slogan">Mon quartier prend vie</div>
+        </div>
+
+        <div class="landing-cta-wrap">
+          <button class="landing-cta-btn" id="btn-landing-join">Rejoindre mon quartier</button>
+          <button class="landing-login-link" id="btn-landing-login">Déjà inscrit ? Se connecter</button>
+        </div>
+      </div>
+
+    </div>`;
+
+  document.getElementById('btn-landing-join').onclick  = () => navigate('register');
+  document.getElementById('btn-landing-login').onclick = () => navigate('login');
 }
 
 function renderDesktopLanding() {
