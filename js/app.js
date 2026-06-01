@@ -161,7 +161,7 @@ function navigate(view, params = {}) {
   state.view = view;
   state.viewParams = params;
 
-  const authViews = ['login', 'register', 'verify', 'onboarding'];
+  const authViews = ['login', 'register', 'verify', 'onboarding', 'landing'];
   const isAuth = authViews.includes(view);
 
   if (isAuth) {
@@ -589,87 +589,178 @@ async function handleLogin() {
 }
 
 function renderLanding() {
-  $nav.classList.add('hidden');
+  if (window.innerWidth <= 768) {
+    navigate('login');
+    return;
+  }
+  renderDesktopLanding();
+}
+
+function renderDesktopLanding() {
   $app.innerHTML = `
-    <div class="landing-screen">
+    <div class="lp-wrapper">
 
-      <!-- Cartes factices flottantes (arrière-plan flouté) -->
-      <div class="landing-bg" aria-hidden="true">
-
-        <div class="landing-card-wrap" style="top:4%;left:-8%;transform:rotate(-8deg)">
-          <div class="landing-card" style="animation-duration:9s;animation-delay:0s">
-            <div class="landing-card-badge">🤝 Entraide</div>
-            <div class="landing-card-text">Quelqu'un pour garder mon chat ce weekend ?</div>
-            <div class="landing-card-meta">📍 Belle-Beille</div>
+      <!-- Header -->
+      <header class="lp-header">
+        <div class="lp-header-inner">
+          <div class="lp-logo">
+            <svg width="32" height="22" viewBox="0 0 80 56" fill="none">
+              <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="#fff"/>
+              <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="rgba(255,255,255,0.45)"/>
+            </svg>
+            <span class="lp-logo-text">Voisy</span>
+          </div>
+          <div class="lp-header-actions">
+            <button class="lp-btn-ghost" id="lp-btn-login">Se connecter</button>
+            <button class="lp-btn-primary-sm" id="lp-btn-register">S'inscrire</button>
           </div>
         </div>
+      </header>
 
-        <div class="landing-card-wrap" style="top:20%;right:-9%;transform:rotate(7deg)">
-          <div class="landing-card" style="animation-duration:12s;animation-delay:-4s">
-            <div class="landing-card-badge">🎭 Événements</div>
-            <div class="landing-card-text">Jazz live vendredi soir au Café Béatrice</div>
-            <div class="landing-card-meta">📍 Centre-ville</div>
+      <!-- Hero -->
+      <section class="lp-hero">
+        <div class="lp-hero-inner">
+          <div class="lp-hero-text">
+            <div class="lp-hero-badge">📍 Angers &amp; alentours</div>
+            <h1 class="lp-hero-h1">Votre quartier,<br>enfin vivant.</h1>
+            <p class="lp-hero-sub">Entraide, sorties, sport, événements — tout ce qui se passe près de chez vous, au même endroit. Gratuit, sans publicité.</p>
+            <div class="lp-hero-cta">
+              <button class="lp-cta-main" id="lp-hero-join">Rejoindre mon quartier</button>
+              <button class="lp-cta-secondary" id="lp-hero-login">Déjà inscrit ? Se connecter →</button>
+            </div>
+            <div class="lp-hero-trust">
+              <span class="lp-trust-item">✓ Gratuit</span>
+              <span class="lp-trust-item">✓ Sans publicité</span>
+              <span class="lp-trust-item">✓ Voisins vérifiés</span>
+            </div>
+          </div>
+          <div class="lp-hero-visual" aria-hidden="true">
+            <div class="lp-float-card lp-fc-1">
+              <div class="lp-fc-badge">🤝 Entraide</div>
+              <div class="lp-fc-text">Quelqu'un peut me prêter une perceuse ce weekend ?</div>
+              <div class="lp-fc-meta">📍 Belle-Beille · Il y a 2 min</div>
+            </div>
+            <div class="lp-float-card lp-fc-2">
+              <div class="lp-fc-badge">🎭 Événements</div>
+              <div class="lp-fc-text">Soirée jazz au Café Béatrice — vendredi 21h, entrée libre</div>
+              <div class="lp-fc-meta">📍 Centre-ville · Nouveau</div>
+            </div>
+            <div class="lp-float-card lp-fc-3">
+              <div class="lp-fc-badge">🏃 Sport</div>
+              <div class="lp-fc-text">Running matinal 7h au Lac de Maine, rejoignez-nous !</div>
+              <div class="lp-fc-meta">📍 Lac de Maine · Il y a 5 min</div>
+            </div>
+            <div class="lp-float-card lp-fc-4">
+              <div class="lp-fc-badge">🐾 Animaux</div>
+              <div class="lp-fc-text">Garde de chat du 14 au 21 juillet, très câlin 😸</div>
+              <div class="lp-fc-meta">📍 La Doutre · Il y a 1h</div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div class="landing-card-wrap" style="top:40%;left:-4%;transform:rotate(-5deg)">
-          <div class="landing-card" style="animation-duration:14s;animation-delay:-7s">
-            <div class="landing-card-badge">🏃 Sport</div>
-            <div class="landing-card-text">Running 7h du mat, qui vient ?</div>
-            <div class="landing-card-meta">📍 Lac de Maine</div>
+      <!-- Comment ça marche -->
+      <section class="lp-how">
+        <div class="lp-section-inner">
+          <div class="lp-section-label">Simple &amp; gratuit</div>
+          <h2 class="lp-section-h2">Comment ça marche</h2>
+          <div class="lp-steps">
+            <div class="lp-step">
+              <div class="lp-step-num">01</div>
+              <div class="lp-step-icon">🏠</div>
+              <h3 class="lp-step-title">Créez votre profil</h3>
+              <p class="lp-step-desc">Indiquez votre quartier, ajoutez une photo et présentez-vous à vos voisins. Inscription en 2 minutes chrono.</p>
+            </div>
+            <div class="lp-step">
+              <div class="lp-step-num">02</div>
+              <div class="lp-step-icon">🗺️</div>
+              <h3 class="lp-step-title">Explorez le fil</h3>
+              <p class="lp-step-desc">Découvrez les petites annonces, événements et activités autour de chez vous, filtrés par quartier et par catégorie.</p>
+            </div>
+            <div class="lp-step">
+              <div class="lp-step-num">03</div>
+              <div class="lp-step-icon">🤝</div>
+              <h3 class="lp-step-title">Rencontrez vos voisins</h3>
+              <p class="lp-step-desc">Échangez en messages privés, entraidez-vous, créez du lien et construisez votre réputation dans le quartier.</p>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div class="landing-card-wrap" style="top:58%;right:-7%;transform:rotate(6deg)">
-          <div class="landing-card" style="animation-duration:10s;animation-delay:-2s">
-            <div class="landing-card-badge">📦 Objets</div>
-            <div class="landing-card-text">Je donne une étagère IKEA, parfait état</div>
-            <div class="landing-card-meta">📍 La Doutre</div>
+      <!-- Catégories -->
+      <section class="lp-cats">
+        <div class="lp-section-inner">
+          <div class="lp-section-label">Des sujets pour tous</div>
+          <h2 class="lp-section-h2">Tout ce qui fait vivre un quartier</h2>
+          <div class="lp-cats-grid">
+            <div class="lp-cat-card">
+              <span class="lp-cat-icon">🤝</span>
+              <div class="lp-cat-name">Entraide</div>
+              <div class="lp-cat-desc">Échanges de services entre voisins — jardinage, bricolage, garde d'enfants et bien plus.</div>
+            </div>
+            <div class="lp-cat-card">
+              <span class="lp-cat-icon">🐾</span>
+              <div class="lp-cat-name">Animaux</div>
+              <div class="lp-cat-desc">Gardes, balades groupées, conseils et petites annonces pour vos compagnons à quatre pattes.</div>
+            </div>
+            <div class="lp-cat-card">
+              <span class="lp-cat-icon">🏃</span>
+              <div class="lp-cat-name">Sport</div>
+              <div class="lp-cat-desc">Sessions sportives ouvertes à tous — running, yoga, vélo, escalade et plus encore.</div>
+            </div>
+            <div class="lp-cat-card">
+              <span class="lp-cat-icon">☕</span>
+              <div class="lp-cat-name">Sorties</div>
+              <div class="lp-cat-desc">Cafés, restos, concerts, films — trouvez des voisins avec qui partager vos sorties.</div>
+            </div>
+            <div class="lp-cat-card">
+              <span class="lp-cat-icon">📦</span>
+              <div class="lp-cat-name">Objets</div>
+              <div class="lp-cat-desc">Prêt et don d'objets du quotidien — partagez plutôt qu'acheter neuf.</div>
+            </div>
+            <div class="lp-cat-card">
+              <span class="lp-cat-icon">🎭</span>
+              <div class="lp-cat-name">Événements</div>
+              <div class="lp-cat-desc">Marchés, fêtes de quartier, expos — ne ratez plus rien de ce qui se passe près de chez vous.</div>
+            </div>
           </div>
         </div>
+      </section>
 
-        <div class="landing-card-wrap" style="top:76%;left:1%;transform:rotate(-6deg)">
-          <div class="landing-card" style="animation-duration:11s;animation-delay:-9s">
-            <div class="landing-card-badge">☕ Sorties</div>
-            <div class="landing-card-text">Café et balade dimanche matin ?</div>
-            <div class="landing-card-meta">📍 Monplaisir</div>
+      <!-- CTA final -->
+      <section class="lp-cta-section">
+        <div class="lp-cta-inner">
+          <span class="lp-cta-badge">Gratuit · Sans publicité · Angers &amp; alentours</span>
+          <h2 class="lp-cta-h2">Prêt à rejoindre<br>votre quartier ?</h2>
+          <p class="lp-cta-sub">Créez votre compte en 2 minutes et découvrez ce qui se passe autour de vous.</p>
+          <button class="lp-cta-btn" id="lp-final-join">Rejoindre Voisy gratuitement</button>
+          <button class="lp-cta-link" id="lp-final-login">J'ai déjà un compte →</button>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="lp-footer">
+        <div class="lp-footer-inner">
+          <div class="lp-footer-logo">
+            <svg width="22" height="15" viewBox="0 0 80 56" fill="none">
+              <path d="M2 54 L19 10 Q20 6 21 10 L39 54 Z" fill="currentColor"/>
+              <path d="M41 54 L59 10 Q60 6 61 10 L78 54 Z" fill="currentColor" opacity="0.38"/>
+            </svg>
+            <span>Voisy</span>
           </div>
+          <div class="lp-footer-tagline">Ici, c'est l'entraide gratuite.</div>
+          <div class="lp-footer-copy">© ${new Date().getFullYear()} Voisy · Angers</div>
         </div>
-
-      </div>
-
-      <!-- Overlay gradient -->
-      <div class="landing-overlay" aria-hidden="true"></div>
-
-      <!-- Contenu principal -->
-      <div class="landing-content">
-        <div class="landing-logo-wrap">
-          <svg class="landing-voisy-svg" viewBox="0 0 360 92" xmlns="http://www.w3.org/2000/svg"
-               fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="0"   y1="10" x2="36"  y2="82" stroke-width="2.5"/>
-            <line x1="72"  y1="10" x2="36"  y2="82" stroke-width="2.5"/>
-            <ellipse cx="118" cy="46" rx="34" ry="36" stroke-width="2.5"/>
-            <line x1="170" y1="10" x2="170" y2="82" stroke-width="2.5"/>
-            <line x1="162" y1="10" x2="178" y2="10" stroke-width="0.7" stroke="rgba(255,255,255,0.5)"/>
-            <line x1="162" y1="82" x2="178" y2="82" stroke-width="0.7" stroke="rgba(255,255,255,0.5)"/>
-            <path d="M254,10 C192,10 254,82 192,82" stroke-width="2.5"/>
-            <line x1="265" y1="10" x2="312" y2="48" stroke-width="2.5"/>
-            <line x1="360" y1="10" x2="312" y2="48" stroke-width="2.5"/>
-            <line x1="312" y1="48" x2="312" y2="82" stroke-width="2.5"/>
-          </svg>
-          <div class="landing-slogan">Mon quartier prend vie</div>
-        </div>
-
-        <div class="landing-cta-wrap">
-          <button class="landing-cta-btn" id="btn-landing-join">Rejoindre mon quartier</button>
-          <button class="landing-login-link" id="btn-landing-login">Déjà inscrit ? Se connecter</button>
-        </div>
-      </div>
+      </footer>
 
     </div>`;
 
-  document.getElementById('btn-landing-join').onclick  = () => navigate('register');
-  document.getElementById('btn-landing-login').onclick = () => navigate('login');
+  document.getElementById('lp-btn-login').onclick    = () => navigate('login');
+  document.getElementById('lp-btn-register').onclick = () => navigate('register');
+  document.getElementById('lp-hero-join').onclick    = () => navigate('register');
+  document.getElementById('lp-hero-login').onclick   = () => navigate('login');
+  document.getElementById('lp-final-join').onclick   = () => navigate('register');
+  document.getElementById('lp-final-login').onclick  = () => navigate('login');
 }
 
 function renderForgotPassword() {
